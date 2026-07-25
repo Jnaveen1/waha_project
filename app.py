@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from service import save_message
+import json
 
 app = FastAPI()
 
@@ -24,10 +25,11 @@ async def webhook(request: Request):
         return {"status": "no payload"}
 
     print("\nNew message received:")
-    print("From:", message.get("from"))
+    # print("From:", message.get("from"))
     print("Body:", message.get("body"))
     print("From me:", message.get("fromMe"))
 
+    # print(json.dumps(data, indent=4, default=str))
     save_message(message)
 
     return {"status": "saved"}
