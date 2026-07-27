@@ -1,6 +1,6 @@
 from database import SessionLocal
 from models import Message
-from llm import generate_friend_reply
+from llm import generate_friend_reply , understand_message
 from waha import (
     get_phone_number_from_lid,
     get_chat_name,
@@ -59,6 +59,7 @@ from database import (
 )
 
 ALLOWED_GROUP_ID = "120363423099150354@g.us"
+FARM_GROUP_ID = "1234567890"
 
 def save_message(msg):
     db = SessionLocal()
@@ -128,6 +129,7 @@ def save_message(msg):
         print("Chat name:", chat_name)
         print("Is group:", is_group)
 
+        message_body = msg.get("body", "")
         # Reply only to messages sent by another person inside a group
         if (
             is_group
@@ -135,9 +137,7 @@ def save_message(msg):
             and chat_id == ALLOWED_GROUP_ID
         ):
 
-            message_body = msg.get("body", "")
-
-            print("Friend:", message_body)
+            print("Friends group message:", message_body)
 
             reply_text = generate_friend_reply(message_body)
 
@@ -147,6 +147,27 @@ def save_message(msg):
                 chat_id=chat_id,
                 text=reply_text
             )
+        elif(
+            is_group
+            and not from_me
+            and chat_id == FARM_GROUP_ID
+        ):
+            print("Farm group message:", message_body)
+
+            parsed_data = understand_message(message_body)
+
+            print("Parsed farm data:", parsed_data)
+
+            result = process_request(parsed_data)
+
+            print("Service result:", result)
+
+            send_message(
+                chat_id=chat_id,
+                text=str(result)
+            )
+
+
 
     except Exception as error:
         db.rollback()

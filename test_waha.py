@@ -17,16 +17,13 @@
 #     for msg in messages:
 #         save_message(msg)
 
-from service import process_request
+import requests
 
-data = {
-    "intent": "add_production",
-    "shed": 1,
-    "quantity": 100,
-    "date": "today",
-    "language": "en"
-}
+response = requests.post(
+    "http://127.0.0.1:8000/test-farm",
+    json={
+        "body": "Last week report in pdf."
+    }
+)
 
-result = process_request(data)
-print(result)
-
+print(response.json())

@@ -2064,28 +2064,33 @@ def understand_message(message: str) -> dict:
 #     "gemini-3.1-flash-lite"
 # )
 
-# def translate_response(message, language):
+def translate_response(message, language):
 
-#     if language == "en":
-#         return message
+    if language == "en":
+        return message
 
-#     prompt = f"""
-#     Translate the following message into the language code '{language}'.
+    prompt = f"""
+    Translate the following message into the language code '{language}'.
 
-#     Rules:
-#     - Keep all numbers exactly the same.
-#     - Preserve emojis.
-#     - Translate words like "Shed", "Produced", "Broken", "Sold", "Stock".
-#     - Do not change the shed number.
-#     - Return only the translated text.
+    Rules:
+    - Keep all numbers exactly the same.
+    - Preserve emojis.
+    - Translate words like "Shed", "Produced", "Broken", "Sold", "Stock".
+    - Do not change the shed number.
+    - Return only the translated text.
 
-#     Message:
-#     {message}
-#     """
+    Message:
+    {message}
+    """
 
-#     response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-3.1-flash-lite",
+        contents=prompt
+    )
 
-#     return response.text.strip()
+    # response = model.generate_content(prompt)
+
+    return response.text.strip()
 
 # def understand_message(message):
 

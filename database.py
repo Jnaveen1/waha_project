@@ -7,10 +7,8 @@ from base import Base
 from models import EggRecord , MedicineStock, FeedStock
 
 
-# DATABASE_URL = "mysql+pymysql://root:Sunfra%40123@localhost:3306/waha_db"
 
-DATABASE_URL = "mysql+pymysql://root:Sunfra%40123@localhost:3306/egg_ai_agent"
-
+DATABASE_URL = "mysql+pymysql://root:Sunfra%40123@localhost:3306/waha_db"
 engine = create_engine(
     DATABASE_URL,
     echo=False

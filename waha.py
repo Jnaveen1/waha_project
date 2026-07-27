@@ -89,6 +89,7 @@ def get_phone_number_from_lid(lid):
     except requests.RequestException as error:
         print("LID lookup error:", error)
         return lid
+
 def get_chat_name(chat_id):
     if not chat_id:
         return None
