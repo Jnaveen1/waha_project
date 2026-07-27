@@ -4,7 +4,7 @@ from datetime import date , timedelta , datetime
 from difflib import get_close_matches
 
 from base import Base
-from models import EggRecord , MedicineStock, FeedStock
+from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting
 
 
 
@@ -1772,3 +1772,280 @@ def get_day_comparison_between_dates(date1, date2, shed_no=None):
         }
 
     }
+
+
+from models import CustomerOrder
+
+def add_egg_price_setting(
+    price_per_egg,
+    eggs_per_tray,
+    price_per_tray,
+    discount_threshold,
+    discount_percentage,
+    available_eggs
+):
+    db = SessionLocal()
+
+    setting = EggPriceSetting(
+        price_per_egg=price_per_egg,
+        eggs_per_tray=eggs_per_tray,
+        price_per_tray=price_per_tray,
+        discount_threshold=discount_threshold,
+        discount_percentage=discount_percentage,
+        available_eggs=available_eggs
+    )
+
+    db.add(setting)
+    db.commit()
+    db.close()
+
+def get_egg_price_setting():
+    db = SessionLocal()
+
+    try:
+        setting = (
+            db.query(EggPriceSetting)
+            .order_by(EggPriceSetting.id.desc())
+            .first()
+        )
+
+        return setting
+
+    finally:
+        db.close()
+
+def create_pending_order(
+    chat_id,
+    customer_whatsapp,
+    quantity_eggs,
+    subtotal
+):
+    db = SessionLocal()
+
+    try:
+        order = CustomerOrder(
+            chat_id=chat_id,
+            customer_whatsapp=customer_whatsapp,
+            quantity_eggs=quantity_eggs,
+            subtotal=subtotal,
+            discount_percentage=0,
+            final_amount=subtotal,
+            status="pending"
+        )
+
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+
+        return order
+
+    except Exception as error:
+        db.rollback()
+        print("Error creating pending order:", error)
+        return None
+
+    finally:
+        db.close()
+
+def get_latest_pending_order(chat_id):
+    db = SessionLocal()
+
+    try:
+        order = (
+            db.query(CustomerOrder)
+            .filter(
+                CustomerOrder.chat_id == chat_id,
+                CustomerOrder.status == "pending"
+            )
+            .order_by(CustomerOrder.id.desc())
+            .first()
+        )
+
+        return order
+
+    finally:
+        db.close()
+
+def apply_discount_to_order(
+    order_id,
+    discount_percentage,
+    final_amount
+):
+    db = SessionLocal()
+
+    try:
+        order = (
+            db.query(CustomerOrder)
+            .filter(CustomerOrder.id == order_id)
+            .first()
+        )
+
+        if not order:
+            return None
+
+        order.discount_percentage = discount_percentage
+        order.final_amount = final_amount
+
+        db.commit()
+        db.refresh(order)
+
+        return order
+
+    except Exception as error:
+        db.rollback()
+        print("Error applying discount:", error)
+        return None
+
+    finally:
+        db.close()
+
+def confirm_customer_order(chat_id):
+    db = SessionLocal()
+
+    try:
+        order = (
+            db.query(CustomerOrder)
+            .filter(
+                CustomerOrder.chat_id == chat_id,
+                CustomerOrder.status == "pending"
+            )
+            .order_by(CustomerOrder.id.desc())
+            .first()
+        )
+
+        if not order:
+            return {
+                "success": False,
+                "message": "No pending order was found."
+            }
+
+        setting = (
+            db.query(EggPriceSetting)
+            .order_by(EggPriceSetting.id.desc())
+            .first()
+        )
+
+        if not setting:
+            return {
+                "success": False,
+                "message": "Egg price settings are not available."
+            }
+
+        if order.quantity_eggs > setting.available_eggs:
+            return {
+                "success": False,
+                "message": (
+                    f"Only {setting.available_eggs} eggs are currently available."
+                )
+            }
+
+        order.status = "confirmed"
+        order.confirmed_at = datetime.now()
+
+        setting.available_eggs -= order.quantity_eggs
+
+        db.commit()
+        db.refresh(order)
+
+        return {
+            "success": True,
+            "order_id": order.id,
+            "quantity_eggs": order.quantity_eggs,
+            "subtotal": order.subtotal,
+            "discount_percentage": order.discount_percentage,
+            "final_amount": order.final_amount,
+            "remaining_eggs": setting.available_eggs
+        }
+
+    except Exception as error:
+        db.rollback()
+        print("Error confirming customer order:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to confirm the order."
+        }
+
+    finally:
+        db.close()        
+
+from datetime import datetime
+
+def confirm_customer_order(chat_id):
+    db = SessionLocal()
+
+    try:
+        order = (
+            db.query(CustomerOrder)
+            .filter(
+                CustomerOrder.chat_id == chat_id,
+                CustomerOrder.status == "pending"
+            )
+            .order_by(CustomerOrder.id.desc())
+            .first()
+        )
+
+        if not order:
+            return {
+                "success": False,
+                "message": "No pending order was found."
+            }
+
+        setting = (
+            db.query(EggPriceSetting)
+            .order_by(EggPriceSetting.id.desc())
+            .first()
+        )
+
+        if not setting:
+            return {
+                "success": False,
+                "message": "Egg price settings were not found."
+            }
+
+        if order.quantity_eggs > setting.available_eggs:
+            return {
+                "success": False,
+                "message": (
+                    f"Not enough eggs are available.\n"
+                    f"Requested: {order.quantity_eggs}\n"
+                    f"Available: {setting.available_eggs}"
+                )
+            }
+
+        # Reduce available stock
+        setting.available_eggs -= order.quantity_eggs
+
+        # Confirm the order
+        order.status = "confirmed"
+        order.confirmed_at = datetime.now()
+
+        db.commit()
+        db.refresh(order)
+
+        # Store normal values before closing the database session
+        result = {
+            "success": True,
+            "message": "Order confirmed successfully.",
+            "order_id": order.id,
+            "quantity_eggs": order.quantity_eggs,
+            "subtotal": order.subtotal,
+            "discount_percentage": order.discount_percentage or 0,
+            "final_amount": order.final_amount,
+            "remaining_eggs": setting.available_eggs
+        }
+
+        return result
+
+    except Exception as error:
+        db.rollback()
+
+        print("Error confirming customer order:", error)
+
+        return {
+            "success": False,
+            "message": "An error occurred while confirming the order."
+        }
+
+    finally:
+        db.close()

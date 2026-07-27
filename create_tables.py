@@ -1,7 +1,7 @@
 from database import engine, Base
 import models
 
-from models import Message, EggRecord, FeedStock, MedicineStock
+from models import EggPriceSetting, CustomerOrder
 
 print("Creating database tables...")
 

@@ -54,8 +54,12 @@ from database import (
     get_week_comparison,
     get_month_comparison , 
     get_shed_weekly_summary , 
-    get_shed_monthly_summary
-
+    get_shed_monthly_summary ,
+    get_latest_pending_order,
+    get_egg_price_setting,
+    apply_discount_to_order ,
+    create_pending_order , 
+    confirm_customer_order
 )
 
 ALLOWED_GROUP_ID = "120363423099150354@g.us"
@@ -613,7 +617,7 @@ def get_records_for_period(data):
         report_date = get_report_date(data)
         return get_records_by_date(report_date), report_date
 
-def process_request(data):
+def process_request(data, chat_id=None,customer_whatsapp=None):
 
     intent = data.get("intent")
     shed = data.get("shed")
@@ -2456,6 +2460,31 @@ def process_request(data):
 
         }
 
+    elif intent == "customer_order":
+
+        quantity = data.get("quantity")
+
+        return create_customer_quotation(
+            chat_id=chat_id,
+            customer_whatsapp=customer_whatsapp,
+            quantity_eggs=quantity
+        )
+
+    elif intent == "customer_discount":
+
+        requested_discount = data.get("discount_percentage")
+
+        return process_customer_discount(
+            chat_id=chat_id,
+            requested_discount=requested_discount
+        )
+
+    elif intent == "customer_confirm":
+
+        return process_order_confirmation(chat_id)
+
+
+
 def generate_daily_pdf_report(report_date):
 
     production_records = get_daily_summary(report_date)
@@ -2520,3 +2549,158 @@ def generate_daily_pdf_report(report_date):
     pdf_path = generate_daily_pdf(report_data)
 
     return pdf_path
+
+def create_customer_quotation(
+    chat_id,
+    customer_whatsapp,
+    quantity_eggs
+):
+    if not quantity_eggs or quantity_eggs <= 0:
+        return {
+            "success": False,
+            "message": "Please provide a valid egg quantity."
+        }
+
+    setting = get_egg_price_setting()
+
+    if not setting:
+        return {
+            "success": False,
+            "message": "Egg price settings are not available."
+        }
+
+    if quantity_eggs > setting.available_eggs:
+        return {
+            "success": False,
+            "message": (
+                f"Sorry, only {setting.available_eggs} eggs "
+                f"are currently available."
+            )
+        }
+
+    subtotal = quantity_eggs * setting.price_per_egg
+
+    order = create_pending_order(
+        chat_id=chat_id,
+        customer_whatsapp=customer_whatsapp,
+        quantity_eggs=quantity_eggs,
+        subtotal=subtotal
+    )
+
+    if not order:
+        return {
+            "success": False,
+            "message": "Unable to create the quotation."
+        }
+
+    trays = quantity_eggs / setting.eggs_per_tray
+
+    message = (
+        f"🥚 Egg Price Details\n\n"
+        f"Quantity       : {quantity_eggs} eggs\n"
+        f"Equivalent trays: {trays:.2f}\n"
+        f"Price per egg  : ₹{setting.price_per_egg:.2f}\n"
+        f"Price per tray : ₹{setting.price_per_tray:.2f}\n"
+        f"Total amount   : ₹{subtotal:.2f}\n\n"
+        f"Your quotation is pending."
+    )
+
+    return {
+        "success": True,
+        "message": message,
+        "order_id": order.id
+    }
+
+def process_customer_discount(chat_id, requested_discount=None):
+
+    order = get_latest_pending_order(chat_id)
+
+    if not order:
+        return {
+            "success": False,
+            "message": "No pending order was found."
+        }
+
+    setting = get_egg_price_setting()
+
+    if not setting:
+        return {
+            "success": False,
+            "message": "Egg price settings were not found."
+        }
+
+    maximum_discount = setting.discount_percentage
+
+    if requested_discount is None:
+        approved_discount = maximum_discount
+
+    else:
+        requested_discount = float(requested_discount)
+
+        if requested_discount > maximum_discount:
+            return {
+                "success": False,
+                "message": (
+                    f"Sorry, the maximum available discount is "
+                    f"{maximum_discount:.2f}%."
+                ),
+                "order_id": order.id
+            }
+
+        approved_discount = requested_discount
+
+    discount_amount = (
+        order.subtotal * approved_discount / 100
+    )
+
+    final_amount = (
+        order.subtotal - discount_amount
+    )
+
+    updated_order = apply_discount_to_order(
+        order_id=order.id,
+        discount_percentage=approved_discount,
+        final_amount=final_amount
+    )
+
+    discount_amount = (
+        updated_order.subtotal *
+        updated_order.discount_percentage / 100
+    )
+
+    return {
+        "success": True,
+        "message": (
+            f"✅ Discount Details\n\n"
+            f"Quantity        : {updated_order.quantity_eggs} eggs\n"
+            f"Original amount : ₹{updated_order.subtotal:.2f}\n"
+            f"Discount        : {updated_order.discount_percentage:.2f}%\n"
+            f"Discount amount : ₹{discount_amount:.2f}\n"
+            f"Final amount    : ₹{updated_order.final_amount:.2f}\n\n"
+            f'Reply "Confirm" to place the order.'
+        ),
+        "order_id": updated_order.id
+    }
+
+
+def process_order_confirmation(chat_id):
+    result = confirm_customer_order(chat_id)
+
+    if not result["success"]:
+        return result
+
+    message = (
+        f"✅ Order Confirmed\n\n"
+        f"Order ID        : {result['order_id']}\n"
+        f"Quantity        : {result['quantity_eggs']} eggs\n"
+        f"Original amount : ₹{result['subtotal']:.2f}\n"
+        f"Discount        : {result['discount_percentage']:.2f}%\n"
+        f"Final amount    : ₹{result['final_amount']:.2f}\n\n"
+        f"Thank you for your order."
+    )
+
+    return {
+        "success": True,
+        "message": message,
+        "order_id": result["order_id"]
+    }

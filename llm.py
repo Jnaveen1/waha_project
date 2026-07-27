@@ -2002,6 +2002,83 @@ def understand_message(message: str) -> dict:
         "language":"en"
         }}
 
+        User:
+        I need 500 eggs
+
+        Output:
+        {{
+            "intent":"customer_order",
+            "quantity":500,
+            "language":"en"
+        }}
+
+        User:
+        I want 1200 eggs
+
+        Output:
+        {{
+            "intent":"customer_order",
+            "quantity":1200,
+            "language":"en"
+        }}
+
+        User:
+        Can I get discount?
+
+        Output:
+        {{
+            "intent":"customer_discount",
+            "discount_percentage": null,
+            "language":"en"
+        }}
+
+
+        User:
+        Give me 10 percent discount, then I will buy.
+
+        Output:
+        {{
+            "intent": "customer_discount",
+            "discount_percentage": 10,
+            "language": "en"
+        }}
+
+        User:
+        Can you give me 7% discount?
+
+        Output:
+        {{
+            "intent": "customer_discount",
+            "discount_percentage": 7,
+            "language": "en"
+        }}
+
+        User:
+        Confirm
+
+        Output:
+        {{
+            "intent":"customer_confirm",
+            "language":"en"
+        }}
+
+        User:
+        Cancel order
+
+        Output:
+        {{
+            "intent":"customer_cancel",
+            "language":"en"
+        }}
+
+        user : Give 10 percent discount, then I will buy
+        output : 
+        {{
+            "intent" : ""
+        }}
+
+
+
         Now convert this:
 
         {message}

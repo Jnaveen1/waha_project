@@ -23,8 +23,6 @@ class Message(Base):
     chat_name = Column(String(255), nullable=True)
     is_group = Column(Boolean, default=False)
 
-
-
 class EggRecord(Base):
 
     __tablename__ = "egg_records"
@@ -39,7 +37,6 @@ class EggRecord(Base):
     broken = Column(Integer, nullable=True)
     sold = Column(Integer, nullable=True)
 
-
 class MedicineStock(Base):
 
     __tablename__ = "medicine_stock"
@@ -51,7 +48,6 @@ class MedicineStock(Base):
     available = Column(Float, default=0)
     used = Column(Float, default=0)
     unit = Column(String(20), default="ml")
-
 
 class FeedStock(Base):
 
@@ -66,3 +62,41 @@ class FeedStock(Base):
     used = Column(Float, default=0)
     unit = Column(String(20), default="kg")
 
+class EggPriceSetting(Base):
+    __tablename__ = "egg_price_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    price_per_egg = Column(Float, nullable=False)
+    eggs_per_tray = Column(Integer, nullable=False)
+    price_per_tray = Column(Float, nullable=False)
+
+    discount_threshold = Column(Integer, nullable=False)
+    discount_percentage = Column(Float, nullable=False)
+
+    available_eggs = Column(Integer, nullable=False, default=0)
+
+    updated_at = Column(
+        DateTime,
+        default=datetime.now,
+        onupdate=datetime.now
+    )
+
+class CustomerOrder(Base):
+    __tablename__ = "customer_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    chat_id = Column(String(150), nullable=False)
+    customer_whatsapp = Column(String(30), nullable=False)
+
+    quantity_eggs = Column(Integer, nullable=False)
+
+    subtotal = Column(Float, nullable=False)
+    discount_percentage = Column(Float, default=0)
+    final_amount = Column(Float, nullable=False)
+
+    status = Column(String(20), default="pending")
+
+    created_at = Column(DateTime, default=datetime.now)
+    confirmed_at = Column(DateTime, nullable=True)

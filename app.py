@@ -159,3 +159,22 @@ async def test_farm(request: Request):
             "message": str(e)
         }
 
+
+@app.post("/test-customer")
+async def test_customer(request: Request):
+
+    body = await request.json()
+
+    message = body.get("message")
+
+    llm_output = understand_message(message)
+
+    result = process_request(
+        llm_output,
+        chat_id="919876543210@c.us",
+        customer_whatsapp="919876543210"
+    )
+
+    return result
+
+

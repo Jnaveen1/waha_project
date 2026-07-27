@@ -19,11 +19,26 @@
 
 import requests
 
-response = requests.post(
-    "http://127.0.0.1:8000/test-farm",
-    json={
-        "body": "Last week report in pdf."
-    }
-)
+url = "http://127.0.0.1:8000/test-customer"
 
-print(response.json())
+payload = {
+    "message": "ok I will buy ."
+}
+
+response = requests.post(url, json=payload)
+
+print("Status code:", response.status_code)
+print("Raw response:", response.text)
+
+try:
+    print("JSON response:", response.json())
+except Exception as error:
+    print("Response is not JSON:", error)
+
+# from database import confirm_customer_order
+# order = confirm_customer_order(
+#     "919876543210@c.us"
+# )
+
+# print(order.status)
+# print(order.confirmed_at)
