@@ -16,29 +16,17 @@
 
 #     for msg in messages:
 #         save_message(msg)
-import time
 
-from llm import understand_message
+from service import process_request
 
+data = {
+    "intent": "add_production",
+    "shed": 1,
+    "quantity": 100,
+    "date": "today",
+    "language": "en"
+}
 
-messages = [
-    "Shed 1 has 5000 live birds",
-    "10 birds died in shed 2",
-    "Shed 3 consumed 75 kg feed",
-    "Add 500 kg layer feed stock",
-    "Remove 50 kg layer feed from stock",
-    "Show feed stock",
-    "Add 10 bottles of medicine A",
-    "Remove 2 bottles of medicine A",
-    "Show medicine stock",
-]
+result = process_request(data)
+print(result)
 
-
-for message in messages:
-    print("\nMessage:", message)
-
-    result = understand_message(message)
-
-    print("Result:", result)
-
-    time.sleep(5)
