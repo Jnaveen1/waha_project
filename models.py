@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, Text, DateTime, Float 
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, Text, DateTime, Date, Float 
 from base import Base
 from datetime import datetime
 
@@ -33,6 +33,8 @@ class EggRecord(Base):
     shed_no = Column(Integer)
     birds = Column(Integer, nullable=True)
     mortality = Column(Integer, nullable=True)
+    first_collection = Column(Integer, default=0)
+    second_collection = Column(Integer, default=0)
     produced = Column(Integer, nullable=True)
     broken = Column(Integer, nullable=True)
     sold = Column(Integer, nullable=True)
@@ -100,3 +102,39 @@ class CustomerOrder(Base):
 
     created_at = Column(DateTime, default=datetime.now)
     confirmed_at = Column(DateTime, nullable=True)
+
+class FarmFinancialSetting(Base):
+
+    __tablename__ = "farm_financial_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    egg_price = Column(Float, nullable=False)
+
+    expected_percentage = Column(Float, default=95.0)
+
+    effective_date = Column(Date, nullable=False)
+
+    updated_at = Column(
+        DateTime,
+        default=datetime.now,
+        onupdate=datetime.now
+    )
+
+class FeedPriceSetting(Base):
+
+    __tablename__ = "feed_price_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    feed_name = Column(String(100), nullable=False)
+
+    cost_per_ton = Column(Float, nullable=False)
+
+    effective_date = Column(Date, nullable=False)
+
+    updated_at = Column(
+        DateTime,
+        default=datetime.now,
+        onupdate=datetime.now
+    )

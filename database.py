@@ -4,7 +4,7 @@ from datetime import date , timedelta , datetime
 from difflib import get_close_matches
 
 from base import Base
-from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting
+from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting , FarmFinancialSetting , FeedPriceSetting 
 
 
 
@@ -2049,3 +2049,288 @@ def confirm_customer_order(chat_id):
 
     finally:
         db.close()
+
+def get_farm_financial_setting(report_date=None):
+
+    db = SessionLocal()
+
+    try:
+
+        if report_date is None:
+            report_date = date.today()
+
+        if isinstance(report_date, str):
+            report_date = date.fromisoformat(report_date)
+
+        setting = (
+            db.query(FarmFinancialSetting)
+            .filter(
+                FarmFinancialSetting.effective_date <= report_date
+            )
+            .order_by(
+                FarmFinancialSetting.effective_date.desc()
+            )
+            .first()
+        )
+
+        if not setting:
+            return None
+
+        return {
+            "egg_price": float(setting.egg_price),
+            "expected_percentage": float(
+                setting.expected_percentage
+            ),
+            "effective_date": str(setting.effective_date)
+        }
+
+    finally:
+        db.close()
+
+def get_feed_price_setting(feed_name, report_date=None):
+
+    db = SessionLocal()
+
+    try:
+
+        if report_date is None:
+            report_date = date.today()
+
+        if isinstance(report_date, str):
+            report_date = date.fromisoformat(report_date)
+
+        setting = (
+            db.query(FeedPriceSetting)
+            .filter(
+                FeedPriceSetting.feed_name == feed_name,
+                FeedPriceSetting.effective_date <= report_date
+            )
+            .order_by(
+                FeedPriceSetting.effective_date.desc()
+            )
+            .first()
+        )
+
+        if not setting:
+            return None
+
+        return {
+            "feed_name": setting.feed_name,
+            "cost_per_ton": float(setting.cost_per_ton),
+            "effective_date": str(setting.effective_date)
+        }
+
+    finally:
+        db.close()
+
+from datetime import date
+
+def get_daily_financial_report_data(report_date=None):
+
+    db = SessionLocal()
+
+    try:
+
+        if report_date is None:
+            report_date = date.today()
+
+        if isinstance(report_date, date):
+            report_date_str = report_date.isoformat()
+        else:
+            report_date_str = report_date
+
+        farm_setting = get_farm_financial_setting(report_date_str)
+
+        if not farm_setting:
+            return {
+                "error": "Farm financial settings not found"
+            }
+
+        egg_records = (
+            db.query(EggRecord)
+            .filter(EggRecord.date == report_date_str)
+            .order_by(EggRecord.shed_no)
+            .all()
+        )
+
+        if not egg_records:
+            return {
+                "error": f"No production data found for {report_date_str}"
+            }
+
+        production_rows = []
+
+        birds_by_shed = {}
+
+        total_production_value = 0
+
+        production_rows = []
+
+        total_production_value = 0
+
+        for record in egg_records:
+
+            birds = record.birds or 0
+            birds_by_shed[record.shed_no] = birds
+            mortality = record.mortality or 0
+
+            first_collection = record.first_collection or 0
+            second_collection = record.second_collection or 0
+
+            total_eggs = record.produced or 0
+
+            egg_price = farm_setting["egg_price"]
+
+            expected_percentage = farm_setting[
+                "expected_percentage"
+            ]
+
+            actual_percentage = 0
+
+            if birds > 0:
+                actual_percentage = (
+                    total_eggs / birds
+                ) * 100
+
+            production_value = total_eggs * egg_price
+
+            total_production_value += production_value
+
+            production_rows.append({
+                "shed_no": record.shed_no,
+                "birds": birds,
+                "first_collection": first_collection,
+                "second_collection": second_collection,
+                "total_eggs": total_eggs,
+                "mortality": mortality,
+                "expected_percentage": expected_percentage,
+                "actual_percentage": round(
+                    actual_percentage,
+                    2
+                ),
+                "egg_price": egg_price,
+                "production_value": round(
+                    production_value,
+                    2
+                )
+            })
+
+        feed_records = (
+            db.query(FeedStock)
+            .filter(FeedStock.date == report_date_str)
+            .all()
+        )
+
+        feed_rows = []
+
+        feed_by_shed = {}
+
+        total_feed_cost = 0
+
+        for feed in feed_records:
+
+            feed_used_kg = float(feed.used or 0)
+
+            price_setting = get_feed_price_setting(
+                feed.feed_name,
+                report_date_str
+            )
+
+            cost_per_ton = 0
+
+            if price_setting:
+                cost_per_ton = float(
+                    price_setting["cost_per_ton"]
+                )
+
+            feed_cost = (
+                feed_used_kg / 1000
+            ) * cost_per_ton
+
+            total_feed_cost += feed_cost
+
+            shed = feed.shed_no
+
+            if shed not in feed_by_shed:
+
+                feed_by_shed[shed] = {
+                    "feed_used_kg": 0,
+                    "total_feed_cost": 0
+                }
+
+            feed_by_shed[shed]["feed_used_kg"] += feed_used_kg
+            feed_by_shed[shed]["total_feed_cost"] += feed_cost
+
+        for shed_no, values in feed_by_shed.items():
+
+            birds = birds_by_shed.get(shed_no, 0)
+
+            feed_used_kg = values["feed_used_kg"]
+
+            feed_consumed_mt = feed_used_kg / 1000
+
+            feed_cost_per_ton = 0
+
+            if feed_consumed_mt > 0:
+                feed_cost_per_ton = (
+                    values["total_feed_cost"]
+                    / feed_consumed_mt
+                )
+
+            feed_rows.append({
+                "shed_no": shed_no,
+
+                "feed_consumed_mt": round(
+                    feed_consumed_mt,
+                    3
+                ),
+
+                "feed_per_bird_g": round(
+                    (feed_used_kg * 1000) / birds,
+                    2
+                ) if birds else 0,
+
+                "feed_cost_per_ton": round(
+                    feed_cost_per_ton,
+                    2
+                ),
+
+                "total_feed_cost": round(
+                    values["total_feed_cost"],
+                    2
+                )
+            })
+        total_expenses = total_feed_cost
+
+        net_profit_or_loss = (
+            total_production_value - total_expenses
+        )
+
+        return {
+            "date": report_date_str,
+            "production_overview": production_rows,
+            "feed_consumption": feed_rows,
+            "pnl_summary": {
+                "total_production_value": round(
+                    total_production_value,
+                    2
+                ),
+                "total_feed_cost": round(
+                    total_feed_cost,
+                    2
+                ),
+                "total_expenses": round(
+                    total_expenses,
+                    2
+                ),
+                "net_profit_or_loss": round(
+                    net_profit_or_loss,
+                    2
+                )
+            }
+        }
+
+    finally:
+        db.close()
+
+

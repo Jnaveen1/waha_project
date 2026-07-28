@@ -8,10 +8,13 @@ from reportlab.platypus import (
 )
 
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER , TA_LEFT
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
+
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.units import mm
 
 from datetime import datetime, date , timedelta
 import os
@@ -1813,4 +1816,840 @@ def generate_shed_pdf_report(shed_no, period):
 
 
     return generate_weekly_pdf(report_data)
+
+def generate_financial_report_pdf(report_data):
+
+    if not report_data:
+        raise ValueError("Financial report data is required")
+
+    if "error" in report_data:
+        raise ValueError(report_data["error"])
+
+    report_date = report_data["date"]
+    production_rows = report_data.get("production_overview", [])
+    feed_rows = report_data.get("feed_consumption", [])
+    pnl = report_data.get("pnl_summary", {})
+
+    output_folder = "generated_reports"
+    os.makedirs(output_folder, exist_ok=True)
+
+    file_name = f"daily_financial_report_{report_date}.pdf"
+    pdf_path = os.path.join(output_folder, file_name)
+
+    # Normal A4 landscape page.
+    document = SimpleDocTemplate(
+        pdf_path,
+        pagesize=landscape(A4),
+        rightMargin=10 * mm,
+        leftMargin=10 * mm,
+        topMargin=10 * mm,
+        bottomMargin=10 * mm,
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "FinancialReportTitle",
+        parent=styles["Title"],
+        alignment=TA_CENTER,
+        fontSize=18,
+        leading=22,
+        spaceAfter=8,
+    )
+
+    section_style = ParagraphStyle(
+        "FinancialSection",
+        parent=styles["Heading2"],
+        alignment=TA_LEFT,
+        fontSize=12,
+        leading=15,
+        spaceBefore=8,
+        spaceAfter=6,
+    )
+
+    date_style = ParagraphStyle(
+        "ReportDate",
+        parent=styles["BodyText"],
+        alignment=TA_CENTER,
+        fontSize=10,
+        spaceAfter=12,
+    )
+
+    elements = []
+
+    # -------------------------------------------------
+    # Report title
+    # -------------------------------------------------
+
+    elements.append(
+        Paragraph(
+            "DAILY FARM FINANCIAL REPORT",
+            title_style,
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"Date: {report_date}",
+            date_style,
+        )
+    )
+
+    # =================================================
+    # Calculate production totals
+    # =================================================
+
+    total_birds = sum(
+        row.get("birds", 0) or 0
+        for row in production_rows
+    )
+
+    total_first_collection = sum(
+        row.get("first_collection", 0) or 0
+        for row in production_rows
+    )
+
+    total_second_collection = sum(
+        row.get("second_collection", 0) or 0
+        for row in production_rows
+    )
+
+    total_eggs = sum(
+        row.get("total_eggs", 0) or 0
+        for row in production_rows
+    )
+
+    total_mortality = sum(
+        row.get("mortality", 0) or 0
+        for row in production_rows
+    )
+
+    total_production_value = sum(
+        row.get("production_value", 0) or 0
+        for row in production_rows
+    )
+
+    total_actual_percentage = (
+        total_eggs / total_birds * 100
+        if total_birds > 0
+        else None
+    )
+
+    # Obtain expected percentage from available production data.
+    expected_percentages = [
+        row.get("expected_percentage")
+        for row in production_rows
+        if row.get("expected_percentage") is not None
+    ]
+
+    total_expected_percentage = (
+        sum(expected_percentages) / len(expected_percentages)
+        if expected_percentages
+        else None
+    )
+
+    # Obtain egg price from available production data.
+    egg_prices = [
+        row.get("egg_price")
+        for row in production_rows
+        if row.get("egg_price") is not None
+    ]
+
+    report_egg_price = (
+        egg_prices[0]
+        if egg_prices
+        else None
+    )
+
+    # -------------------------------------------------
+    # 1. Production and Financial Overview
+    # -------------------------------------------------
+
+    elements.append(
+        Paragraph(
+            "1. Production & Financial Overview",
+            section_style,
+        )
+    )
+
+    production_table_data = [
+        [
+            "Shed",
+            "Birds",
+            "1st Coll.",
+            "2nd Coll.",
+            "Total Eggs",
+            "Mortality",
+            "Expected %",
+            "Actual %",
+            "Egg Price",
+            "Prod. Value",
+        ]
+    ]
+
+    # Create shed-number lookup from available data.
+    production_lookup = {
+        int(row["shed_no"]): row
+        for row in production_rows
+        if row.get("shed_no") is not None
+    }
+
+    # Always show Shed 1 to Shed 9.
+    for shed_no in range(1, 10):
+
+        row = production_lookup.get(shed_no)
+
+        if row is None:
+            production_table_data.append(
+                [
+                    f"Shed {shed_no}",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                ]
+            )
+            continue
+
+        birds = row.get("birds")
+        first_collection = row.get("first_collection")
+        second_collection = row.get("second_collection")
+        total_row_eggs = row.get("total_eggs")
+        mortality = row.get("mortality")
+        expected_percentage = row.get("expected_percentage")
+        actual_percentage = row.get("actual_percentage")
+        egg_price = row.get("egg_price")
+        production_value = row.get("production_value")
+
+        production_table_data.append(
+            [
+                f"Shed {shed_no}",
+                f"{birds:,}" if birds is not None else "-",
+                (
+                    f"{first_collection:,}"
+                    if first_collection is not None
+                    else "-"
+                ),
+                (
+                    f"{second_collection:,}"
+                    if second_collection is not None
+                    else "-"
+                ),
+                (
+                    f"{total_row_eggs:,}"
+                    if total_row_eggs is not None
+                    else "-"
+                ),
+                (
+                    f"{mortality:,}"
+                    if mortality is not None
+                    else "-"
+                ),
+                (
+                    f"{expected_percentage:.2f}%"
+                    if expected_percentage is not None
+                    else "-"
+                ),
+                (
+                    f"{actual_percentage:.2f}%"
+                    if actual_percentage is not None
+                    else "-"
+                ),
+                (
+                    f"Rs. {egg_price:,.2f}"
+                    if egg_price is not None
+                    else "-"
+                ),
+                (
+                    f"Rs. {production_value:,.2f}"
+                    if production_value is not None
+                    else "-"
+                ),
+            ]
+        )
+
+    # Grower row.
+    production_table_data.append(
+        [
+            "Grower",
+            "-",
+            "N/A",
+            "N/A",
+            "N/A",
+            "-",
+            "N/A",
+            "N/A",
+            "N/A",
+            "N/A",
+        ]
+    )
+
+    # Chick row.
+    production_table_data.append(
+        [
+            "Chick",
+            "-",
+            "N/A",
+            "N/A",
+            "N/A",
+            "-",
+            "N/A",
+            "N/A",
+            "N/A",
+            "N/A",
+        ]
+    )
+
+    # Production Total row.
+    production_table_data.append(
+        [
+            "Total",
+            f"{total_birds:,}",
+            f"{total_first_collection:,}",
+            f"{total_second_collection:,}",
+            f"{total_eggs:,}",
+            f"{total_mortality:,}",
+            (
+                f"{total_expected_percentage:.2f}%"
+                if total_expected_percentage is not None
+                else "-"
+            ),
+            (
+                f"{total_actual_percentage:.2f}%"
+                if total_actual_percentage is not None
+                else "-"
+            ),
+            (
+                f"Rs. {report_egg_price:,.2f}"
+                if report_egg_price is not None
+                else "-"
+            ),
+            f"Rs. {total_production_value:,.2f}",
+        ]
+    )
+
+    production_total_row = len(production_table_data) - 1
+
+    production_table = Table(
+        production_table_data,
+        repeatRows=1,
+        colWidths=[
+            20 * mm,
+            22 * mm,
+            24 * mm,
+            24 * mm,
+            24 * mm,
+            20 * mm,
+            23 * mm,
+            21 * mm,
+            23 * mm,
+            31 * mm,
+        ],
+        hAlign="CENTER",
+    )
+
+    production_table.setStyle(
+        TableStyle(
+            [
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#D9EAF7"),
+                ),
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.black,
+                ),
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold",
+                ),
+                (
+                    "FONTNAME",
+                    (0, 1),
+                    (-1, -1),
+                    "Helvetica",
+                ),
+                (
+                    "FONTNAME",
+                    (0, production_total_row),
+                    (-1, production_total_row),
+                    "Helvetica-Bold",
+                ),
+                (
+                    "BACKGROUND",
+                    (0, production_total_row),
+                    (-1, production_total_row),
+                    colors.HexColor("#D9EAD3"),
+                ),
+                (
+                    "FONTSIZE",
+                    (0, 0),
+                    (-1, -1),
+                    8,
+                ),
+                (
+                    "ALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "CENTER",
+                ),
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "MIDDLE",
+                ),
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.grey,
+                ),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, production_total_row - 1),
+                    [
+                        colors.white,
+                        colors.HexColor("#F7F7F7"),
+                    ],
+                ),
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5,
+                ),
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5,
+                ),
+            ]
+        )
+    )
+
+    elements.append(production_table)
+    elements.append(Spacer(1, 8 * mm))
+
+    # =================================================
+    # Calculate feed totals
+    # =================================================
+
+    total_feed_consumed_mt = sum(
+        row.get("feed_consumed_mt", 0) or 0
+        for row in feed_rows
+    )
+
+    total_feed_cost = sum(
+        row.get("total_feed_cost", 0) or 0
+        for row in feed_rows
+    )
+
+    # Convert MT to kg, then kg to grams.
+    total_feed_used_kg = total_feed_consumed_mt * 1000
+
+    total_feed_per_bird_g = (
+        total_feed_used_kg * 1000 / total_birds
+        if total_birds > 0
+        else None
+    )
+
+    # Weighted average feed cost per ton.
+    total_feed_cost_per_ton = (
+        total_feed_cost / total_feed_consumed_mt
+        if total_feed_consumed_mt > 0
+        else None
+    )
+
+    # -------------------------------------------------
+    # 2. Feed Consumption
+    # -------------------------------------------------
+
+    elements.append(
+        Paragraph(
+            "2. Feed Consumption",
+            section_style,
+        )
+    )
+
+    feed_table_data = [
+        [
+            "Shed",
+            "Feed Consumed (MT)",
+            "Feed/Bird (g/day)",
+            "Feed Cost/Ton",
+            "Total Feed Cost",
+        ]
+    ]
+
+    feed_lookup = {
+        int(row["shed_no"]): row
+        for row in feed_rows
+        if row.get("shed_no") is not None
+    }
+
+    # Always show Shed 1 to Shed 9.
+    for shed_no in range(1, 10):
+
+        row = feed_lookup.get(shed_no)
+
+        if row is None:
+            feed_table_data.append(
+                [
+                    f"Shed {shed_no}",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                ]
+            )
+            continue
+
+        feed_consumed_mt = row.get("feed_consumed_mt")
+        feed_per_bird_g = row.get("feed_per_bird_g")
+        feed_cost_per_ton = row.get("feed_cost_per_ton")
+        row_total_feed_cost = row.get("total_feed_cost")
+
+        feed_table_data.append(
+            [
+                f"Shed {shed_no}",
+                (
+                    f"{feed_consumed_mt:.3f}"
+                    if feed_consumed_mt is not None
+                    else "-"
+                ),
+                (
+                    f"{feed_per_bird_g:.2f}"
+                    if feed_per_bird_g is not None
+                    else "-"
+                ),
+                (
+                    f"Rs. {feed_cost_per_ton:,.2f}"
+                    if feed_cost_per_ton is not None
+                    else "-"
+                ),
+                (
+                    f"Rs. {row_total_feed_cost:,.2f}"
+                    if row_total_feed_cost is not None
+                    else "-"
+                ),
+            ]
+        )
+
+    # Grower row.
+    feed_table_data.append(
+        [
+            "Grower",
+            "-",
+            "-",
+            "-",
+            "-",
+        ]
+    )
+
+    # Chick row.
+    feed_table_data.append(
+        [
+            "Chick",
+            "-",
+            "-",
+            "-",
+            "-",
+        ]
+    )
+
+    # Feed Total row.
+    feed_table_data.append(
+        [
+            "Total",
+            f"{total_feed_consumed_mt:.3f}",
+            (
+                f"{total_feed_per_bird_g:.2f}"
+                if total_feed_per_bird_g is not None
+                else "-"
+            ),
+            (
+                f"Rs. {total_feed_cost_per_ton:,.2f}"
+                if total_feed_cost_per_ton is not None
+                else "-"
+            ),
+            f"Rs. {total_feed_cost:,.2f}",
+        ]
+    )
+
+    feed_total_row = len(feed_table_data) - 1
+
+    feed_table = Table(
+        feed_table_data,
+        repeatRows=1,
+        colWidths=[
+            25 * mm,
+            45 * mm,
+            45 * mm,
+            45 * mm,
+            50 * mm,
+        ],
+        hAlign="CENTER",
+    )
+
+    feed_table.setStyle(
+        TableStyle(
+            [
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#E2F0D9"),
+                ),
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.black,
+                ),
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold",
+                ),
+                (
+                    "FONTNAME",
+                    (0, 1),
+                    (-1, -1),
+                    "Helvetica",
+                ),
+                (
+                    "FONTNAME",
+                    (0, feed_total_row),
+                    (-1, feed_total_row),
+                    "Helvetica-Bold",
+                ),
+                (
+                    "BACKGROUND",
+                    (0, feed_total_row),
+                    (-1, feed_total_row),
+                    colors.HexColor("#D9EAD3"),
+                ),
+                (
+                    "FONTSIZE",
+                    (0, 0),
+                    (-1, -1),
+                    9,
+                ),
+                (
+                    "ALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "CENTER",
+                ),
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "MIDDLE",
+                ),
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.grey,
+                ),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, feed_total_row - 1),
+                    [
+                        colors.white,
+                        colors.HexColor("#F7F7F7"),
+                    ],
+                ),
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6,
+                ),
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6,
+                ),
+            ]
+        )
+    )
+
+    elements.append(feed_table)
+    elements.append(Spacer(1, 8 * mm))
+
+    # -------------------------------------------------
+    # 3. Daily P&L Summary
+    # -------------------------------------------------
+
+    elements.append(
+        Paragraph(
+            "3. Daily P&L Summary",
+            section_style,
+        )
+    )
+
+    # Use calculated totals as fallback values.
+    pnl_total_production_value = pnl.get(
+        "total_production_value",
+        total_production_value,
+    )
+
+    pnl_total_feed_cost = pnl.get(
+        "total_feed_cost",
+        total_feed_cost,
+    )
+
+    net_amount = pnl.get(
+        "net_profit_or_loss",
+        pnl_total_production_value - pnl_total_feed_cost,
+    )
+
+    net_label = (
+        "Net Profit"
+        if net_amount >= 0
+        else "Net Loss"
+    )
+
+    pnl_table_data = [
+        [
+            "Description",
+            "Amount",
+        ],
+        [
+            "Total Production Value",
+            f"Rs. {pnl_total_production_value:,.2f}",
+        ],
+        [
+            "Total Feed Cost",
+            f"Rs. {pnl_total_feed_cost:,.2f}",
+        ],
+        [
+            net_label,
+            f"Rs. {abs(net_amount):,.2f}",
+        ],
+    ]
+
+    pnl_table = Table(
+        pnl_table_data,
+        colWidths=[
+            90 * mm,
+            60 * mm,
+        ],
+        hAlign="CENTER",
+    )
+
+    pnl_styles = [
+        (
+            "BACKGROUND",
+            (0, 0),
+            (-1, 0),
+            colors.HexColor("#FFF2CC"),
+        ),
+        (
+            "FONTNAME",
+            (0, 0),
+            (-1, 0),
+            "Helvetica-Bold",
+        ),
+        (
+            "FONTNAME",
+            (0, 1),
+            (-1, -2),
+            "Helvetica",
+        ),
+        (
+            "FONTNAME",
+            (0, -1),
+            (-1, -1),
+            "Helvetica-Bold",
+        ),
+        (
+            "FONTSIZE",
+            (0, 0),
+            (-1, -1),
+            10,
+        ),
+        (
+            "ALIGN",
+            (0, 0),
+            (-1, -1),
+            "CENTER",
+        ),
+        (
+            "VALIGN",
+            (0, 0),
+            (-1, -1),
+            "MIDDLE",
+        ),
+        (
+            "GRID",
+            (0, 0),
+            (-1, -1),
+            0.5,
+            colors.grey,
+        ),
+        (
+            "TOPPADDING",
+            (0, 0),
+            (-1, -1),
+            7,
+        ),
+        (
+            "BOTTOMPADDING",
+            (0, 0),
+            (-1, -1),
+            7,
+        ),
+    ]
+
+    if net_amount >= 0:
+        pnl_styles.append(
+            (
+                "BACKGROUND",
+                (0, -1),
+                (-1, -1),
+                colors.HexColor("#D9EAD3"),
+            )
+        )
+    else:
+        pnl_styles.append(
+            (
+                "BACKGROUND",
+                (0, -1),
+                (-1, -1),
+                colors.HexColor("#F4CCCC"),
+            )
+        )
+
+    pnl_table.setStyle(
+        TableStyle(pnl_styles)
+    )
+
+    elements.append(pnl_table)
+
+    document.build(elements)
+
+    return pdf_path
+
 

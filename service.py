@@ -59,7 +59,8 @@ from database import (
     get_egg_price_setting,
     apply_discount_to_order ,
     create_pending_order , 
-    confirm_customer_order
+    confirm_customer_order ,
+    get_daily_financial_report_data
 )
 
 ALLOWED_GROUP_ID = "120363423099150354@g.us"
@@ -2483,6 +2484,29 @@ def process_request(data, chat_id=None,customer_whatsapp=None):
 
         return process_order_confirmation(chat_id)
 
+    elif intent == "get_financial_report":
+
+        report_date = get_report_date(data)
+
+        report = get_daily_financial_report_data(report_date)
+
+        report_format = data.get("format", "message")
+
+        if report_format == "message":
+
+            return format_daily_financial_report(report)
+
+        elif report_format == "pdf":
+
+            from report_generator import generate_financial_report_pdf
+
+            pdf_path = generate_financial_report_pdf(report)
+
+            return {
+                "type": "pdf",
+                "file": pdf_path
+            }
+
 
 
 def generate_daily_pdf_report(report_date):
@@ -2682,7 +2706,6 @@ def process_customer_discount(chat_id, requested_discount=None):
         "order_id": updated_order.id
     }
 
-
 def process_order_confirmation(chat_id):
     result = confirm_customer_order(chat_id)
 
@@ -2704,3 +2727,77 @@ def process_order_confirmation(chat_id):
         "message": message,
         "order_id": result["order_id"]
     }
+
+def format_daily_financial_report(report_data):
+
+    if not report_data:
+        return "No financial report data found."
+
+    if "error" in report_data:
+        return report_data["error"]
+
+    report_date = report_data["date"]
+
+    production_rows = report_data["production_overview"]
+    feed_rows = report_data["feed_consumption"]
+    pnl = report_data["pnl_summary"]
+
+    message = (
+        f"📊 DAILY FARM FINANCIAL REPORT\n"
+        f"📅 Date: {report_date}\n\n"
+    )
+
+    message += "1️⃣ PRODUCTION & FINANCIAL OVERVIEW\n"
+
+    for row in production_rows:
+
+        message += (
+            f"\n🏠 Shed {row['shed_no']}\n"
+            f"Birds: {row['birds']}\n"
+            f"1st Collection: {row['first_collection']}\n"
+            f"2nd Collection: {row['second_collection']}\n"
+            f"Total Eggs: {row['total_eggs']}\n"
+            f"Mortality: {row['mortality']}\n"
+            f"Expected: {row['expected_percentage']:.2f}%\n"
+            f"Actual: {row['actual_percentage']:.2f}%\n"
+            f"Egg Price: ₹{row['egg_price']:.2f}\n"
+            f"Production Value: ₹{row['production_value']:,.2f}\n"
+        )
+
+    message += "\n2️⃣ FEED CONSUMPTION\n"
+
+    if not feed_rows:
+        message += "\nNo feed consumption data found.\n"
+
+    for row in feed_rows:
+
+        message += (
+            f"\n🏠 Shed {row['shed_no']}\n"
+            f"Feed: {row['feed_name']}\n"
+            f"Feed Consumed: {row['feed_consumed_mt']:.3f} MT\n"
+            f"Feed/Bird: {row['feed_per_bird_g']:.2f} g/day\n"
+            f"Feed Cost/Ton: ₹{row['feed_cost_per_ton']:,.2f}\n"
+            f"Total Feed Cost: ₹{row['total_feed_cost']:,.2f}\n"
+        )
+
+    profit_or_loss = pnl["net_profit_or_loss"]
+
+    result_label = (
+        "Net Profit"
+        if profit_or_loss >= 0
+        else "Net Loss"
+    )
+
+    message += (
+        "\n3️⃣ DAILY P&L SUMMARY\n\n"
+        f"Total Production Value: "
+        f"₹{pnl['total_production_value']:,.2f}\n"
+        f"Total Feed Cost: "
+        f"₹{pnl['total_feed_cost']:,.2f}\n"
+        f"Total Expenses: "
+        f"₹{pnl['total_expenses']:,.2f}\n"
+        f"{result_label}: "
+        f"₹{abs(profit_or_loss):,.2f}"
+    )
+
+    return message

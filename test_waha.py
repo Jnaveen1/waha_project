@@ -19,10 +19,10 @@
 
 import requests
 
-url = "http://127.0.0.1:8000/test-customer"
+url = "http://127.0.0.1:8000/test-farm"
 
 payload = {
-    "message": "ok I will buy ."
+    "body": "give me today financial reprot in pdf."
 }
 
 response = requests.post(url, json=payload)
@@ -34,6 +34,8 @@ try:
     print("JSON response:", response.json())
 except Exception as error:
     print("Response is not JSON:", error)
+
+
 
 # from database import confirm_customer_order
 # order = confirm_customer_order(
