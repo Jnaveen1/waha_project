@@ -112,7 +112,8 @@ def save_message(msg):
 
         sender_phone = get_phone_number_from_lid(sender_id)
         sender_name = message_data.get("notifyName")
-
+        print("chat_ID is:", chat_id)
+        
         new_message = Message(
             message_id=message_id,
             chat_id=chat_id,

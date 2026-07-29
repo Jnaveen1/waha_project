@@ -168,6 +168,7 @@ def get_contact_name(chat_id):
         return None
 
 def send_message(chat_id, text):
+    print("Chat_ID is :", chat_id)
     if not chat_id:
         print("Cannot send message: chat ID missing")
         return None

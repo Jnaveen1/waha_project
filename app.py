@@ -4,14 +4,18 @@ from llm import understand_message , translate_response
 import base64
 import os
 import requests
-from waha import (BASE_URL, HEADERS)
+from pydantic import BaseModel, Field
+from reminder_service import send_reminder_to_all_groups
+import scheduler 
+
 app = FastAPI()
 
+class ReminderRequest(BaseModel):
+    message: str
 
 @app.get("/")
 def home():
     return {"message": "Webhook server is running"}
-
 
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -39,37 +43,6 @@ async def webhook(request: Request):
     save_message(message)
 
     return {"status": "saved"}
-
-# @app.post("/test-farm")
-# async def test_farm(request: Request):
-#     data = await request.json()
-
-#     message_body = data.get("body")
-
-#     if not message_body:
-#         return {
-#             "status": "error",
-#             "message": "body is required"
-#         }
-
-#     parsed_data = understand_message(message_body)
-
-#     print("Parsed data:", parsed_data)
-
-#     result = process_request(parsed_data)
-
-#     print("Service result:", result)
-
-#     send_message(
-#             chat_id="120363423099150354@g.us",
-#             text=str(result)
-#         )
-
-#     return {
-#         "status": "processed",
-#         "parsed_data": parsed_data,
-#         "result": result
-#     }
 
 @app.post("/test-farm")
 async def test_farm(request: Request):
@@ -159,7 +132,6 @@ async def test_farm(request: Request):
             "message": str(e)
         }
 
-
 @app.post("/test-customer")
 async def test_customer(request: Request):
 
@@ -177,4 +149,12 @@ async def test_customer(request: Request):
 
     return result
 
+@app.post("/send-group-reminder")
+def send_group_reminder(request: ReminderRequest):
 
+    result = send_reminder_to_all_groups(request.message)
+
+    return {
+        "success": True,
+        "results": result
+    }

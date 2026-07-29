@@ -17,23 +17,23 @@
 #     for msg in messages:
 #         save_message(msg)
 
-import requests
+# import requests
 
-url = "http://127.0.0.1:8000/test-farm"
+# url = "http://127.0.0.1:8000/test-farm"
 
-payload = {
-    "body": "give me today financial reprot in pdf . "
-}
+# payload = {
+#     "body": "give me today financial reprot in pdf ."
+# }
 
-response = requests.post(url, json=payload)
+# response = requests.post(url, json=payload)
 
-print("Status code:", response.status_code)
-print("Raw response:", response.text)
+# print("Status code:", response.status_code)
+# print("Raw response:", response.text)
 
-try:
-    print("JSON response:", response.json())
-except Exception as error:
-    print("Response is not JSON:", error)
+# try:
+#     print("JSON response:", response.json())
+# except Exception as error:
+#     print("Response is not JSON:", error)
 
 
 
@@ -44,3 +44,23 @@ except Exception as error:
 
 # print(order.status)
 # print(order.confirmed_at)
+
+
+import requests
+
+url = "http://127.0.0.1:8000/test-farm"
+
+message = {
+    "message": "Reminder: Please send today's farm production, feed, mortality and sales details."
+}
+
+response = requests.post(
+    url,
+    json=message,
+    timeout=30,
+)
+
+print("Status code:", response.status_code)
+print("Response:", response.text)
+
+
