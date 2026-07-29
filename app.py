@@ -8,14 +8,29 @@ from pydantic import BaseModel, Field
 from reminder_service import send_reminder_to_all_groups
 import scheduler 
 
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+
 app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
+
+app.mount(
+    "/static",
+    StaticFiles(directory="static"),
+    name="static"
+)
 
 class ReminderRequest(BaseModel):
     message: str
 
-@app.get("/")
-def home():
-    return {"message": "Webhook server is running"}
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="reminders.html"
+    )
 
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -158,3 +173,4 @@ def send_group_reminder(request: ReminderRequest):
         "success": True,
         "results": result
     }
+
