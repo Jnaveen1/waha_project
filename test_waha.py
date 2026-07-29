@@ -22,7 +22,7 @@ import requests
 url = "http://127.0.0.1:8000/test-farm"
 
 payload = {
-    "body": "give me today financial reprot in pdf."
+    "body": "give me today financial reprot in pdf . "
 }
 
 response = requests.post(url, json=payload)

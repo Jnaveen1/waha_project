@@ -1836,12 +1836,12 @@ def generate_financial_report_pdf(report_data):
     file_name = f"daily_financial_report_{report_date}.pdf"
     pdf_path = os.path.join(output_folder, file_name)
 
-    # Normal A4 landscape page.
+    # Normal A4 page.
     document = SimpleDocTemplate(
         pdf_path,
-        pagesize=landscape(A4),
-        rightMargin=10 * mm,
+        pagesize=A4,
         leftMargin=10 * mm,
+        rightMargin=10 * mm,
         topMargin=10 * mm,
         bottomMargin=10 * mm,
     )
@@ -2139,16 +2139,16 @@ def generate_financial_report_pdf(report_data):
         production_table_data,
         repeatRows=1,
         colWidths=[
-            20 * mm,
-            22 * mm,
-            24 * mm,
-            24 * mm,
-            24 * mm,
-            20 * mm,
-            23 * mm,
-            21 * mm,
-            23 * mm,
-            31 * mm,
+            17 * mm,  # Shed
+            17 * mm,  # Birds
+            18 * mm,  # 1st collection
+            18 * mm,  # 2nd collection
+            19 * mm,  # Total eggs
+            17 * mm,  # Mortality
+            19 * mm,  # Expected percentage
+            18 * mm,  # Actual percentage
+            20 * mm,  # Egg price
+            25 * mm,  # Production value
         ],
         hAlign="CENTER",
     )
@@ -2192,12 +2192,7 @@ def generate_financial_report_pdf(report_data):
                     (-1, production_total_row),
                     colors.HexColor("#D9EAD3"),
                 ),
-                (
-                    "FONTSIZE",
-                    (0, 0),
-                    (-1, -1),
-                    8,
-                ),
+                ("FONTSIZE", (0, 0), (-1, -1), 6.5),
                 (
                     "ALIGN",
                     (0, 0),
@@ -2226,18 +2221,8 @@ def generate_financial_report_pdf(report_data):
                         colors.HexColor("#F7F7F7"),
                     ],
                 ),
-                (
-                    "TOPPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    5,
-                ),
-                (
-                    "BOTTOMPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    5,
-                ),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
             ]
         )
     )
@@ -2397,11 +2382,11 @@ def generate_financial_report_pdf(report_data):
         feed_table_data,
         repeatRows=1,
         colWidths=[
-            25 * mm,
+            22 * mm,
+            38 * mm,
+            38 * mm,
+            38 * mm,
             45 * mm,
-            45 * mm,
-            45 * mm,
-            50 * mm,
         ],
         hAlign="CENTER",
     )
