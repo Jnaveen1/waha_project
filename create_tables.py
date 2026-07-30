@@ -1,7 +1,7 @@
 from database import engine, Base
 import models
 
-from models import FarmFinancialSetting, FeedPriceSetting 
+from models import Reminder, ReminderRecipient 
 
 print("Creating database tables...")
 

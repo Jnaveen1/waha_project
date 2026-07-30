@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from service import save_message, process_request , send_message
+from service import save_message, process_request , send_message , create_reminder
 from llm import understand_message , translate_response
 import base64
 import os
@@ -11,8 +11,24 @@ import scheduler
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from service import fetch_all_reminders , remove_reminder , change_reminder_status
+from contextlib import asynccontextmanager
+from scheduler import start_scheduler, stop_scheduler\
 
-app = FastAPI()
+from datetime import date
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    start_scheduler()
+
+    yield
+
+    stop_scheduler()
+
+
+
+app = FastAPI(lifespan=lifespan)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -21,9 +37,38 @@ app.mount(
     StaticFiles(directory="static"),
     name="static"
 )
+from typing import List, Optional
+from pydantic import BaseModel
+
+
+class ReminderRecipientRequest(BaseModel):
+    recipient_name: str
+    chat_id: str
+    recipient_type: str
+
 
 class ReminderRequest(BaseModel):
     message: str
+    repeat_type: str
+    schedule_date: Optional[str] = None
+    schedule_time: str
+    week_day: Optional[str] = None
+    recipients: List[ReminderRecipientRequest]
+
+class ReminderCreateRequest(BaseModel):
+    message: str
+    repeat_type: str
+
+    schedule_date: Optional[str] = None
+
+    schedule_time: str
+
+    week_day: Optional[str] = None
+
+    recipients: List[RecipientRequest]
+
+class ReminderStatusRequest(BaseModel):
+    is_active: bool
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -173,4 +218,114 @@ def send_group_reminder(request: ReminderRequest):
         "success": True,
         "results": result
     }
+
+@app.post("/api/reminders")
+def add_reminder_api(request: ReminderRequest):
+
+    try:
+        reminder = create_reminder(request)
+
+        return {
+            "success": True,
+            "message": "Reminder created successfully",
+            "reminder": reminder
+        }
+
+    except ValueError as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+    except Exception as error:
+        print("Create reminder API error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to create reminder"
+        }
+
+    
+@app.get("/api/reminders")
+def list_reminders():
+
+    try:
+        reminders = fetch_all_reminders()
+
+        return {
+            "success": True,
+            "reminders": reminders
+        }
+
+    except Exception as error:
+
+        print("Get reminders error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to load reminders",
+            "reminders": []
+        }
+
+@app.delete("/api/reminders/{reminder_id}")
+def delete_reminder_api(reminder_id: int):
+
+    try:
+
+        deleted = remove_reminder(reminder_id)
+
+        if not deleted:
+            return {
+                "success": False,
+                "message": "Reminder not found"
+            }
+
+        return {
+            "success": True,
+            "message": "Reminder deleted successfully"
+        }
+
+    except Exception as error:
+
+        print(error)
+
+        return {
+            "success": False,
+            "message": "Unable to delete reminder"
+        }
+    
+@app.patch("/api/reminders/{reminder_id}/status")
+def update_reminder_status_api(
+    reminder_id: int,
+    request: ReminderStatusRequest
+):
+
+    try:
+        updated_status = change_reminder_status(
+            reminder_id,
+            request.is_active
+        )
+
+        if updated_status is None:
+            return {
+                "success": False,
+                "message": "Reminder not found"
+            }
+
+        return {
+            "success": True,
+            "message": "Reminder status updated successfully",
+            "is_active": updated_status
+        }
+
+    except Exception as error:
+
+        print("Update reminder status error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to update reminder status"
+        }
+
+
 

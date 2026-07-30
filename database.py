@@ -4,8 +4,7 @@ from datetime import date , timedelta , datetime
 from difflib import get_close_matches
 
 from base import Base
-from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting , FarmFinancialSetting , FeedPriceSetting 
-
+from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting , FarmFinancialSetting , FeedPriceSetting , CustomerOrder , Reminder, ReminderRecipient
 
 
 DATABASE_URL = "mysql+pymysql://root:Sunfra%40123@localhost:3306/waha_db"
@@ -1773,9 +1772,6 @@ def get_day_comparison_between_dates(date1, date2, shed_no=None):
 
     }
 
-
-from models import CustomerOrder
-
 def add_egg_price_setting(
     price_per_egg,
     eggs_per_tray,
@@ -1969,8 +1965,6 @@ def confirm_customer_order(chat_id):
     finally:
         db.close()        
 
-from datetime import datetime
-
 def confirm_customer_order(chat_id):
     db = SessionLocal()
 
@@ -2122,8 +2116,6 @@ def get_feed_price_setting(feed_name, report_date=None):
 
     finally:
         db.close()
-
-from datetime import date
 
 def get_daily_financial_report_data(report_date=None):
 
@@ -2333,4 +2325,226 @@ def get_daily_financial_report_data(report_date=None):
     finally:
         db.close()
 
+def save_reminder(request):
 
+    db = SessionLocal()
+
+    try:
+        schedule_date = None
+
+        if request.schedule_date:
+            schedule_date = datetime.strptime(
+                request.schedule_date,
+                "%Y-%m-%d"
+            ).date()
+
+        schedule_time = datetime.strptime(
+            request.schedule_time,
+            "%H:%M"
+        ).time()
+
+        reminder = Reminder(
+            message=request.message.strip(),
+            repeat_type=request.repeat_type,
+            schedule_date=schedule_date,
+            schedule_time=schedule_time,
+            week_day=request.week_day,
+            is_active=True
+        )
+
+        db.add(reminder)
+
+        # Generate reminder.id before commit
+        db.flush()
+
+        for recipient in request.recipients:
+
+            reminder_recipient = ReminderRecipient(
+                reminder_id=reminder.id,
+                recipient_name=recipient.recipient_name,
+                chat_id=recipient.chat_id,
+                recipient_type=recipient.recipient_type
+            )
+
+            db.add(reminder_recipient)
+
+        reminder.job_id = f"reminder_{reminder.id}"
+
+        db.commit()
+        db.refresh(reminder)
+
+        # Return the required values before closing the session
+        return {
+            "id": reminder.id,
+            "message": reminder.message,
+            "repeat_type": reminder.repeat_type,
+            "schedule_date": reminder.schedule_date,
+            "schedule_time": reminder.schedule_time,
+            "week_day": reminder.week_day,
+            "is_active": reminder.is_active,
+            "job_id": reminder.job_id
+        }
+
+    except Exception as error:
+        db.rollback()
+
+        print("Save reminder error:", error)
+
+        raise
+
+    finally:
+        db.close()
+
+def get_all_reminders():
+
+    db = SessionLocal()
+
+    try:
+        reminders = (
+            db.query(Reminder)
+            .order_by(Reminder.id.desc())
+            .all()
+        )
+
+        result = []
+
+        for reminder in reminders:
+
+            recipients = []
+
+            for recipient in reminder.recipients:
+
+                recipients.append({
+                    "id": recipient.id,
+                    "recipient_name": recipient.recipient_name,
+                    "chat_id": recipient.chat_id,
+                    "recipient_type": recipient.recipient_type
+                })
+
+            result.append({
+                "id": reminder.id,
+                "message": reminder.message,
+                "repeat_type": reminder.repeat_type,
+                "schedule_date": (
+                    reminder.schedule_date.isoformat()
+                    if reminder.schedule_date
+                    else None
+                ),
+                "schedule_time": (
+                    reminder.schedule_time.strftime("%H:%M")
+                    if reminder.schedule_time
+                    else None
+                ),
+                "week_day": reminder.week_day,
+                "is_active": reminder.is_active,
+                "job_id": reminder.job_id,
+                "created_at": (
+                    reminder.created_at.isoformat()
+                    if reminder.created_at
+                    else None
+                ),
+                "recipients": recipients
+            })
+
+        return result
+
+    finally:
+        db.close()
+        
+def delete_reminder(reminder_id):
+
+    db = SessionLocal()
+
+    try:
+
+        reminder = (
+            db.query(Reminder)
+            .filter(Reminder.id == reminder_id)
+            .first()
+        )
+
+        if not reminder:
+            return False
+
+        db.delete(reminder)
+
+        db.commit()
+
+        return True
+
+    except Exception:
+
+        db.rollback()
+        raise
+
+    finally:
+
+        db.close()
+
+def update_reminder_status(reminder_id, is_active):
+
+    db = SessionLocal()
+
+    try:
+        reminder = (
+            db.query(Reminder)
+            .filter(Reminder.id == reminder_id)
+            .first()
+        )
+
+        if not reminder:
+            return None
+
+        reminder.is_active = is_active
+
+        db.commit()
+
+        db.refresh(reminder)
+
+        return reminder.is_active
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+def get_reminder_by_id(reminder_id):
+
+    db = SessionLocal()
+
+    try:
+        reminder = (
+            db.query(Reminder)
+            .filter(Reminder.id == reminder_id)
+            .first()
+        )
+
+        if not reminder:
+            return None
+
+        recipients = (
+            db.query(ReminderRecipient)
+            .filter(
+                ReminderRecipient.reminder_id == reminder_id
+            )
+            .all()
+        )
+
+        return {
+            "id": reminder.id,
+            "message": reminder.message,
+            "is_active": reminder.is_active,
+            "recipients": [
+                {
+                    "recipient_name": recipient.recipient_name,
+                    "chat_id": recipient.chat_id,
+                    "recipient_type": recipient.recipient_type
+                }
+                for recipient in recipients
+            ]
+        }
+
+    finally:
+        db.close()

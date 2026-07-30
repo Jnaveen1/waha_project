@@ -45,7 +45,7 @@ const reminderCount = document.getElementById("reminderCount");
 const contacts = [
     {
         name: "Farm Manager",
-        chatId: "919876543210@c.us"
+        chatId: "916309809912@c.us"
     },
     {
         name: "Supervisor",
@@ -202,9 +202,9 @@ function getSelectedRecipients() {
 
     return Array.from(selectedCheckboxes).map((checkbox) => {
         return {
-            name: checkbox.dataset.name,
-            chatId: checkbox.value,
-            type: checkbox.dataset.type
+            recipient_name: checkbox.dataset.name,
+            chat_id: checkbox.value,
+            recipient_type: checkbox.dataset.type
         };
     });
 }
@@ -272,7 +272,7 @@ function renderReminders() {
 
         const recipientCell = document.createElement("td");
         recipientCell.textContent = reminder.recipients
-            .map((recipient) => recipient.name)
+            .map((recipient) => recipient.recipient_name)
             .join(", ");
 
         const scheduleCell = document.createElement("td");
@@ -323,24 +323,58 @@ function renderReminders() {
 }
 
 
-function toggleReminderStatus(reminderId) {
-    reminders = reminders.map((reminder) => {
-        if (reminder.id === reminderId) {
-            return {
-                ...reminder,
-                isActive: !reminder.isActive
-            };
+async function toggleReminderStatus(reminderId) {
+    const reminder = reminders.find(
+        (item) => item.id === reminderId
+    );
+
+    if (!reminder) {
+        alert("Reminder not found.");
+        return;
+    }
+
+    const newStatus = !reminder.isActive;
+
+    try {
+        const response = await fetch(
+            `/api/reminders/${reminderId}/status`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    is_active: newStatus
+                })
+            }
+        );
+
+        const result = await response.json();
+
+        console.log("Status update response:", result);
+
+        if (result.success) {
+            await loadReminders();
+        } else {
+            alert(
+                result.message ||
+                "Unable to update reminder status."
+            );
         }
 
-        return reminder;
-    });
+    } catch (error) {
+        console.error(
+            "Update reminder status error:",
+            error
+        );
 
-    renderReminders();
+        alert("Unable to connect to the server.");
+    }
 }
 
 
-function deleteReminder(reminderId) {
-    const confirmed = window.confirm(
+async function deleteReminder(reminderId) {
+    const confirmed = confirm(
         "Are you sure you want to delete this reminder?"
     );
 
@@ -348,58 +382,140 @@ function deleteReminder(reminderId) {
         return;
     }
 
-    reminders = reminders.filter(
-        (reminder) => reminder.id !== reminderId
-    );
+    try {
+        const response = await fetch(
+            `/api/reminders/${reminderId}`,
+            {
+                method: "DELETE"
+            }
+        );
 
-    renderReminders();
+        const result = await response.json();
+
+        console.log("Delete response:", result);
+
+        if (result.success) {
+            alert("Reminder deleted successfully.");
+
+            await loadReminders();
+        } else {
+            alert(result.message || "Unable to delete reminder.");
+        }
+
+    } catch (error) {
+        console.error("Delete reminder error:", error);
+
+        alert("Unable to connect to the server.");
+    }
 }
 
-
-function handleReminderSubmit(event) {
+async function handleReminderSubmit(event) {
     event.preventDefault();
 
     const selectedRecipients = getSelectedRecipients();
 
     if (selectedRecipients.length === 0) {
         recipientError.classList.remove("hidden");
-
         return;
     }
 
     recipientError.classList.add("hidden");
 
     const newReminder = {
-        id: Date.now(),
-
-        message: document.getElementById(
-            "reminderMessage"
-        ).value.trim(),
+        message: document
+            .getElementById("reminderMessage")
+            .value
+            .trim(),
 
         recipients: selectedRecipients,
 
-        repeatType: repeatType.value,
+        repeat_type: repeatType.value,
 
-        scheduleDate: scheduleDate.value,
+        schedule_date: scheduleDate.value || null,
 
-        scheduleTime: document.getElementById(
-            "scheduleTime"
-        ).value,
+        schedule_time: document
+            .getElementById("scheduleTime")
+            .value,
 
-        weekDay: weekDay.value,
-
-        isActive: true
+        week_day: weekDay.value || null
     };
 
-    reminders.push(newReminder);
+    if (!newReminder.message) {
+        alert("Reminder message is required.");
+        return;
+    }
 
-    console.log("Reminder created:", newReminder);
+    if (!newReminder.schedule_time) {
+        alert("Schedule time is required.");
+        return;
+    }
 
-    renderReminders();
+    try {
+        const response = await fetch("/api/reminders", {
+            method: "POST",
 
-    closeReminderModal();
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify(newReminder)
+        });
+
+        const result = await response.json();
+
+        console.log("Backend response:", result);
+
+        if (result.success) {
+            alert("Reminder saved successfully.");
+
+            closeReminderModal();
+
+             await loadReminders();
+
+            // We will load reminders from MySQL in the next step.
+        } else {
+            alert(result.message || "Unable to save reminder.");
+        }
+
+    } catch (error) {
+        console.error("Save reminder error:", error);
+
+        alert("Unable to connect to the server.");
+    }
 }
 
+async function loadReminders() {
+    try {
+        const response = await fetch("/api/reminders");
+
+        const result = await response.json();
+
+        console.log("Loaded reminders:", result);
+
+        if (!result.success) {
+            alert(result.message || "Unable to load reminders.");
+            return;
+        }
+
+        reminders = result.reminders.map((reminder) => {
+            return {
+                id: reminder.id,
+                message: reminder.message,
+                recipients: reminder.recipients,
+                repeatType: reminder.repeat_type,
+                scheduleDate: reminder.schedule_date,
+                scheduleTime: reminder.schedule_time,
+                weekDay: reminder.week_day,
+                isActive: reminder.is_active
+            };
+        });
+
+        renderReminders();
+
+    } catch (error) {
+        console.error("Load reminders error:", error);
+    }
+}
 
 openReminderFormButton.addEventListener(
     "click",
@@ -452,7 +568,10 @@ document
     .addEventListener("click", closeReminderModal);
 
 
+
+
 loadContacts();
 loadGroups();
 updateScheduleFields();
 renderReminders();
+loadReminders();

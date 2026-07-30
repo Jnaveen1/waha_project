@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, Text, DateTime, Date, Float 
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, Text, DateTime, Date,Time, ForeignKey, Float 
 from base import Base
 from datetime import datetime
+from sqlalchemy.orm import relationship
 
 
 class Message(Base):
@@ -138,3 +139,100 @@ class FeedPriceSetting(Base):
         default=datetime.now,
         onupdate=datetime.now
     )
+
+class Reminder(Base):
+    __tablename__ = "reminders"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    message = Column(
+        String(1000),
+        nullable=False
+    )
+
+    repeat_type = Column(
+        String(20),
+        nullable=False
+    )
+
+    schedule_date = Column(
+        Date,
+        nullable=True
+    )
+
+    schedule_time = Column(
+        Time,
+        nullable=False
+    )
+
+    week_day = Column(
+        String(20),
+        nullable=True
+    )
+
+    is_active = Column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
+    job_id = Column(
+        String(100),
+        nullable=True,
+        unique=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.now,
+        nullable=False
+    )
+
+    recipients = relationship(
+        "ReminderRecipient",
+        back_populates="reminder",
+        cascade="all, delete-orphan"
+    )
+
+class ReminderRecipient(Base):
+    __tablename__ = "reminder_recipients"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    reminder_id = Column(
+        Integer,
+        ForeignKey(
+            "reminders.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    recipient_name = Column(
+        String(255),
+        nullable=False
+    )
+
+    chat_id = Column(
+        String(255),
+        nullable=False
+    )
+
+    recipient_type = Column(
+        String(20),
+        nullable=False
+    )
+
+    reminder = relationship(
+        "Reminder",
+        back_populates="recipients"
+    )
+

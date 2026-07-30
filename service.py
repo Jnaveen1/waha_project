@@ -7,10 +7,10 @@ from waha import (
     send_message
 )
 
-from datetime import date, timedelta
+from datetime import date, timedelta , datetime
 from tabulate import tabulate 
 from report_generator import generate_daily_pdf
-
+from scheduler import schedule_one_time_reminder
 from database import (
     add_production,
     add_broken,
@@ -60,7 +60,8 @@ from database import (
     apply_discount_to_order ,
     create_pending_order , 
     confirm_customer_order ,
-    get_daily_financial_report_data
+    get_daily_financial_report_data , 
+    save_reminder 
 )
 
 ALLOWED_GROUP_ID = "120363423099150354@g.us"
@@ -2509,7 +2510,6 @@ def process_request(data, chat_id=None,customer_whatsapp=None):
             }
 
 
-
 def generate_daily_pdf_report(report_date):
 
     production_records = get_daily_summary(report_date)
@@ -2802,3 +2802,90 @@ def format_daily_financial_report(report_data):
     )
 
     return message
+
+def create_reminder(request):
+
+    if not request.message or not request.message.strip():
+        raise ValueError("Reminder message is required")
+
+    if not request.recipients:
+        raise ValueError("Select at least one recipient")
+
+    valid_repeat_types = [
+        "once",
+        "daily",
+        "weekly"
+    ]
+
+    if request.repeat_type not in valid_repeat_types:
+        raise ValueError("Invalid repeat type")
+
+    if not request.schedule_time:
+        raise ValueError("Schedule time is required")
+
+    try:
+        datetime.strptime(
+            request.schedule_time,
+            "%H:%M"
+        )
+    except ValueError:
+        raise ValueError(
+            "Schedule time must use HH:MM format"
+        )
+
+    if request.repeat_type == "once":
+
+        if not request.schedule_date:
+            raise ValueError(
+                "Schedule date is required for a one-time reminder"
+            )
+
+        try:
+            selected_date = datetime.strptime(
+                request.schedule_date,
+                "%Y-%m-%d"
+            ).date()
+        except ValueError:
+            raise ValueError(
+                "Schedule date must use YYYY-MM-DD format"
+            )
+
+        if selected_date < date.today():
+            raise ValueError(
+                "Schedule date cannot be in the past"
+            )
+
+    if request.repeat_type == "weekly":
+        if not request.week_day:
+            raise ValueError(
+                "Weekday is required for a weekly reminder"
+            )
+
+    reminder = save_reminder(request)
+
+    if reminder["repeat_type"] == "once":
+        schedule_one_time_reminder(reminder)
+
+    return reminder
+
+from database import get_all_reminders
+
+def fetch_all_reminders():
+
+    return get_all_reminders()
+
+from database import delete_reminder
+
+def remove_reminder(reminder_id):
+
+    return delete_reminder(reminder_id)
+
+from database import update_reminder_status
+
+def change_reminder_status(reminder_id, is_active):
+
+    return update_reminder_status(
+        reminder_id,
+        is_active
+    )
+
