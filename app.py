@@ -5,7 +5,6 @@ import base64
 import os
 import requests
 from pydantic import BaseModel, Field
-from reminder_service import send_reminder_to_all_groups
 import scheduler 
 
 from fastapi.templating import Jinja2Templates
@@ -16,6 +15,7 @@ from contextlib import asynccontextmanager
 from scheduler import start_scheduler, stop_scheduler\
 
 from datetime import date
+from reminder_service import get_whatsapp_recipients
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -209,16 +209,6 @@ async def test_customer(request: Request):
 
     return result
 
-@app.post("/send-group-reminder")
-def send_group_reminder(request: ReminderRequest):
-
-    result = send_reminder_to_all_groups(request.message)
-
-    return {
-        "success": True,
-        "results": result
-    }
-
 @app.post("/api/reminders")
 def add_reminder_api(request: ReminderRequest):
 
@@ -244,7 +234,6 @@ def add_reminder_api(request: ReminderRequest):
             "success": False,
             "message": "Unable to create reminder"
         }
-
     
 @app.get("/api/reminders")
 def list_reminders():
@@ -327,5 +316,42 @@ def update_reminder_status_api(
             "message": "Unable to update reminder status"
         }
 
+@app.get("/api/whatsapp/recipients")
+def list_whatsapp_recipients():
 
+    try:
+        recipients = get_whatsapp_recipients()
 
+        return {
+            "success": True,
+            "contacts": recipients["contacts"],
+            "groups": recipients["groups"],
+        }
+
+    except requests.RequestException as error:
+
+        print(
+            "WAHA recipient API error:",
+            error
+        )
+
+        return {
+            "success": False,
+            "message": "Unable to load WhatsApp recipients",
+            "contacts": [],
+            "groups": [],
+        }
+
+    except Exception as error:
+
+        print(
+            "Recipient loading error:",
+            error
+        )
+
+        return {
+            "success": False,
+            "message": str(error),
+            "contacts": [],
+            "groups": [],
+        }

@@ -42,36 +42,10 @@ const reminderTableBody = document.getElementById(
 const reminderCount = document.getElementById("reminderCount");
 
 
-const contacts = [
-    {
-        name: "Farm Manager",
-        chatId: "916309809912@c.us"
-    },
-    {
-        name: "Supervisor",
-        chatId: "919123456789@c.us"
-    },
-    {
-        name: "Account Manager",
-        chatId: "919999999999@c.us"
-    }
-];
+const contacts = [];
 
 
-const groups = [
-    {
-        name: "Farm Group",
-        chatId: "120363423099150354@g.us"
-    },
-    {
-        name: "Management Group",
-        chatId: "120363345095589925@g.us"
-    },
-    {
-        name: "AI Intern Group",
-        chatId: "120363422507401551@g.us"
-    }
-];
+const groups = [];
 
 
 let reminders = [];
@@ -95,7 +69,7 @@ function closeReminderModal() {
 }
 
 
-function createRecipientItem(recipient, type) {
+function createRecipientItem(recipient) {
     const item = document.createElement("label");
 
     item.className = "recipient-item";
@@ -103,14 +77,17 @@ function createRecipientItem(recipient, type) {
     const checkbox = document.createElement("input");
 
     checkbox.type = "checkbox";
-    checkbox.value = recipient.chatId;
-    checkbox.dataset.name = recipient.name;
-    checkbox.dataset.type = type;
+    checkbox.value = recipient.chat_id;
+    checkbox.dataset.name =
+        recipient.recipient_name;
+    checkbox.dataset.type =
+        recipient.recipient_type;
 
-    const recipientDetails = document.createElement("span");
+    const recipientDetails =
+        document.createElement("span");
 
     recipientDetails.textContent =
-        `${recipient.name} (${recipient.chatId})`;
+        `${recipient.recipient_name} (${recipient.chat_id})`;
 
     item.appendChild(checkbox);
     item.appendChild(recipientDetails);
@@ -118,29 +95,101 @@ function createRecipientItem(recipient, type) {
     return item;
 }
 
+async function loadWhatsAppRecipients() {
+    try {
+        const response = await fetch(
+            "/api/whatsapp/recipients"
+        );
+
+        const result = await response.json();
+
+        console.log(
+            "WhatsApp recipients:",
+            result
+        );
+
+        if (!result.success) {
+            alert(
+                result.message ||
+                "Unable to load WhatsApp recipients."
+            );
+
+            contacts = [];
+            groups = [];
+
+            loadContacts();
+            loadGroups();
+
+            return;
+        }
+
+        contacts = result.contacts || [];
+        groups = result.groups || [];
+
+        loadContacts();
+        loadGroups();
+
+    } catch (error) {
+        console.error(
+            "Load WhatsApp recipients error:",
+            error
+        );
+
+        alert(
+            "Unable to connect to WhatsApp service."
+        );
+
+        contacts = [];
+        groups = [];
+
+        loadContacts();
+        loadGroups();
+    }
+}
 
 function loadContacts() {
     contactList.innerHTML = "";
 
+    if (contacts.length === 0) {
+        contactList.innerHTML = `
+            <p class="empty-message">
+                No WhatsApp contacts found.
+            </p>
+        `;
+
+        return;
+    }
+
     contacts.forEach((contact) => {
-        const item = createRecipientItem(contact, "contact");
+        const item = createRecipientItem(
+            contact
+        );
 
         contactList.appendChild(item);
     });
 }
 
-
 function loadGroups() {
     groupList.innerHTML = "";
 
+    if (groups.length === 0) {
+        groupList.innerHTML = `
+            <p class="empty-message">
+                No WhatsApp groups found.
+            </p>
+        `;
+
+        return;
+    }
+
     groups.forEach((group) => {
-        const item = createRecipientItem(group, "group");
+        const item = createRecipientItem(
+            group
+        );
 
         groupList.appendChild(item);
     });
 }
-
-
 function clearSelectedRecipients() {
     const selectedCheckboxes = document.querySelectorAll(
         '.recipient-list input[type="checkbox"]'
@@ -570,8 +619,7 @@ document
 
 
 
-loadContacts();
-loadGroups();
+loadWhatsAppRecipients();
 updateScheduleFields();
 renderReminders();
 loadReminders();
