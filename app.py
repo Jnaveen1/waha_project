@@ -6,6 +6,7 @@ import os
 import requests
 from pydantic import BaseModel, Field
 import scheduler 
+from typing import List, Optional
 
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -47,13 +48,13 @@ class ReminderRecipientRequest(BaseModel):
     recipient_type: str
 
 
-class ReminderRequest(BaseModel):
-    message: str
-    repeat_type: str
-    schedule_date: Optional[str] = None
-    schedule_time: str
-    week_day: Optional[str] = None
-    recipients: List[ReminderRecipientRequest]
+# class ReminderRequest(BaseModel):
+#     message: str
+#     repeat_type: str
+#     schedule_date: Optional[str] = None
+#     schedule_time: str
+#     week_day: Optional[str] = None
+#     recipients: List[ReminderRecipientRequest]
 
 class ReminderCreateRequest(BaseModel):
     message: str
@@ -65,7 +66,7 @@ class ReminderCreateRequest(BaseModel):
 
     week_day: Optional[str] = None
 
-    recipients: List[RecipientRequest]
+    recipients: List[ReminderRecipientRequest]
 
 class ReminderStatusRequest(BaseModel):
     is_active: bool
@@ -210,7 +211,7 @@ async def test_customer(request: Request):
     return result
 
 @app.post("/api/reminders")
-def add_reminder_api(request: ReminderRequest):
+def add_reminder_api(request: ReminderCreateRequest):
 
     try:
         reminder = create_reminder(request)
@@ -355,3 +356,5 @@ def list_whatsapp_recipients():
             "contacts": [],
             "groups": [],
         }
+
+

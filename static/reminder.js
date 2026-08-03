@@ -42,12 +42,8 @@ const reminderTableBody = document.getElementById(
 const reminderCount = document.getElementById("reminderCount");
 
 
-const contacts = [];
-
-
-const groups = [];
-
-
+let contacts = [];
+let groups = [];
 let reminders = [];
 
 
