@@ -11,7 +11,7 @@ from typing import List, Optional
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from service import fetch_all_reminders , remove_reminder , change_reminder_status
+from service import fetch_all_reminders , remove_reminder , change_reminder_status , create_saved_contact, fetch_saved_contacts, remove_saved_contact 
 from contextlib import asynccontextmanager
 from scheduler import start_scheduler, stop_scheduler\
 
@@ -47,15 +47,6 @@ class ReminderRecipientRequest(BaseModel):
     chat_id: str
     recipient_type: str
 
-
-# class ReminderRequest(BaseModel):
-#     message: str
-#     repeat_type: str
-#     schedule_date: Optional[str] = None
-#     schedule_time: str
-#     week_day: Optional[str] = None
-#     recipients: List[ReminderRecipientRequest]
-
 class ReminderCreateRequest(BaseModel):
     message: str
     repeat_type: str
@@ -70,6 +61,11 @@ class ReminderCreateRequest(BaseModel):
 
 class ReminderStatusRequest(BaseModel):
     is_active: bool
+
+class SavedContactRequest(BaseModel):
+    name: str
+    whatsapp_number: str
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -357,4 +353,75 @@ def list_whatsapp_recipients():
             "groups": [],
         }
 
+@app.post("/api/contacts")
+def add_contact(request: SavedContactRequest):
 
+    try:
+        contact = create_saved_contact(request)
+
+        return {
+            "success": True,
+            "message": "Contact saved successfully",
+            "contact": contact
+        }
+
+    except ValueError as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+    except Exception as error:
+        print("Create contact error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to save contact"
+        }
+
+@app.get("/api/contacts")
+def list_contacts():
+
+    try:
+        contacts = fetch_saved_contacts()
+
+        return {
+            "success": True,
+            "contacts": contacts
+        }
+
+    except Exception as error:
+        print("Load contacts error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to load contacts",
+            "contacts": []
+        }
+
+@app.delete("/api/contacts/{contact_id}")
+def delete_contact(contact_id: int):
+
+    try:
+        deleted = remove_saved_contact(contact_id)
+
+        if not deleted:
+            return {
+                "success": False,
+                "message": "Contact not found"
+            }
+
+        return {
+            "success": True,
+            "message": "Contact deleted successfully"
+        }
+
+    except Exception as error:
+        print("Delete contact error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to delete contact"
+        }
+
+        

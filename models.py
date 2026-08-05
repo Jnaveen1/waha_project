@@ -236,3 +236,77 @@ class ReminderRecipient(Base):
         back_populates="recipients"
     )
 
+class SavedContact(Base):
+    __tablename__ = "saved_contacts"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    name = Column(
+        String(255),
+        nullable=False
+    )
+
+    whatsapp_number = Column(
+        String(30),
+        nullable=False,
+        unique=True
+    )
+
+    chat_id = Column(
+        String(255),
+        nullable=False,
+        unique=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.now,
+        nullable=False
+    )
+
+class ReminderReport(Base):
+    __tablename__ = "reminder_reports"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    report_name = Column(
+        String(255),
+        nullable=False
+    )
+
+    task_title = Column(
+        String(255),
+        nullable=False
+    )
+
+    message = Column(
+        String(2000),
+        nullable=False
+    )
+
+    details = Column(
+        Text,
+        nullable=True
+    )
+
+    is_active = Column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.now,
+        nullable=False
+    )
+
+

@@ -4,10 +4,10 @@ from datetime import date , timedelta , datetime
 from difflib import get_close_matches
 
 from base import Base
-from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting , FarmFinancialSetting , FeedPriceSetting , CustomerOrder , Reminder, ReminderRecipient
+from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting , FarmFinancialSetting , FeedPriceSetting , CustomerOrder , Reminder, ReminderRecipient , SavedContact, ReminderReport 
 
 
-DATABASE_URL = "mysql+pymysql://root:Sunfra%40123@localhost:3306/waha_db"
+DATABASE_URL = "mysql+pymysql://root:sunfra%40123@localhost:3306/waha_db"
 engine = create_engine(
     DATABASE_URL,
     echo=False
@@ -2548,3 +2548,111 @@ def get_reminder_by_id(reminder_id):
 
     finally:
         db.close()
+
+def save_contact(request):
+
+    db = SessionLocal()
+
+    try:
+        name = request.name.strip()
+        number = request.whatsapp_number.strip()
+
+        if not name:
+            raise ValueError("Contact name is required")
+
+        if not number:
+            raise ValueError("WhatsApp number is required")
+
+        number = number.replace(" ", "").replace("+", "")
+
+        existing_contact = (
+            db.query(SavedContact)
+            .filter(
+                SavedContact.whatsapp_number == number
+            )
+            .first()
+        )
+
+        if existing_contact:
+            raise ValueError(
+                "This WhatsApp number is already saved"
+            )
+
+        chat_id = f"{number}@c.us"
+
+        contact = SavedContact(
+            name=name,
+            whatsapp_number=number,
+            chat_id=chat_id
+        )
+
+        db.add(contact)
+        db.commit()
+        db.refresh(contact)
+
+        return {
+            "id": contact.id,
+            "name": contact.name,
+            "whatsapp_number": contact.whatsapp_number,
+            "chat_id": contact.chat_id
+        }
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+def get_saved_contacts():
+
+    db = SessionLocal()
+
+    try:
+        contacts = (
+            db.query(SavedContact)
+            .order_by(SavedContact.name)
+            .all()
+        )
+
+        return [
+            {
+                "id": contact.id,
+                "name": contact.name,
+                "whatsapp_number": contact.whatsapp_number,
+                "chat_id": contact.chat_id,
+                "recipient_type": "contact"
+            }
+            for contact in contacts
+        ]
+
+    finally:
+        db.close()
+
+def delete_saved_contact(contact_id):
+
+    db = SessionLocal()
+
+    try:
+        contact = (
+            db.query(SavedContact)
+            .filter(SavedContact.id == contact_id)
+            .first()
+        )
+
+        if not contact:
+            return False
+
+        db.delete(contact)
+        db.commit()
+
+        return True
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+

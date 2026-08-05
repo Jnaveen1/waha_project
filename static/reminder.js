@@ -41,6 +41,17 @@ const reminderTableBody = document.getElementById(
 
 const reminderCount = document.getElementById("reminderCount");
 
+const contactNameInput = document.getElementById(
+    "contactName"
+);
+
+const contactNumberInput = document.getElementById(
+    "contactNumber"
+);
+
+const addContactButton = document.getElementById(
+    "addContactButton"
+);
 
 let contacts = [];
 let groups = [];
@@ -119,10 +130,8 @@ async function loadWhatsAppRecipients() {
             return;
         }
 
-        contacts = result.contacts || [];
         groups = result.groups || [];
 
-        loadContacts();
         loadGroups();
 
     } catch (error) {
@@ -143,13 +152,103 @@ async function loadWhatsAppRecipients() {
     }
 }
 
+async function loadSavedContacts() {
+    try {
+        const response = await fetch("/api/contacts");
+
+        const result = await response.json();
+
+        if (!result.success) {
+            alert(
+                result.message ||
+                "Unable to load saved contacts."
+            );
+
+            contacts = [];
+            loadContacts();
+
+            return;
+        }
+
+        contacts = result.contacts || [];
+
+        loadContacts();
+
+    } catch (error) {
+        console.error(
+            "Load saved contacts error:",
+            error
+        );
+
+        contacts = [];
+        loadContacts();
+    }
+}
+
+async function addSavedContact() {
+    const name = contactNameInput.value.trim();
+    const number = contactNumberInput.value.trim();
+
+    if (!name) {
+        alert("Contact name is required.");
+        return;
+    }
+
+    if (!number) {
+        alert("WhatsApp number is required.");
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            "/api/contacts",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name: name,
+                    whatsapp_number: number
+                })
+            }
+        );
+
+        const result = await response.json();
+
+        if (!result.success) {
+            alert(
+                result.message ||
+                "Unable to save contact."
+            );
+
+            return;
+        }
+
+        contactNameInput.value = "";
+        contactNumberInput.value = "";
+
+        await loadSavedContacts();
+
+        alert("Contact saved successfully.");
+
+    } catch (error) {
+        console.error(
+            "Save contact error:",
+            error
+        );
+
+        alert("Unable to connect to the server.");
+    }
+}
+
 function loadContacts() {
     contactList.innerHTML = "";
 
     if (contacts.length === 0) {
         contactList.innerHTML = `
             <p class="empty-message">
-                No WhatsApp contacts found.
+                No saved contacts found.
             </p>
         `;
 
@@ -157,9 +256,24 @@ function loadContacts() {
     }
 
     contacts.forEach((contact) => {
-        const item = createRecipientItem(
-            contact
-        );
+        const item = document.createElement("label");
+
+        item.className = "recipient-item";
+
+        const checkbox = document.createElement("input");
+
+        checkbox.type = "checkbox";
+        checkbox.value = contact.chat_id;
+        checkbox.dataset.name = contact.name;
+        checkbox.dataset.type = "contact";
+
+        const details = document.createElement("span");
+
+        details.textContent =
+            `${contact.name} (${contact.whatsapp_number})`;
+
+        item.appendChild(checkbox);
+        item.appendChild(details);
 
         contactList.appendChild(item);
     });
@@ -186,6 +300,7 @@ function loadGroups() {
         groupList.appendChild(item);
     });
 }
+
 function clearSelectedRecipients() {
     const selectedCheckboxes = document.querySelectorAll(
         '.recipient-list input[type="checkbox"]'
@@ -607,6 +722,10 @@ reminderForm.addEventListener(
     handleReminderSubmit
 );
 
+addContactButton.addEventListener(
+    "click",
+    addSavedContact
+);
 
 document
     .querySelector(".modal-overlay")
@@ -614,7 +733,7 @@ document
 
 
 
-
+loadSavedContacts();
 loadWhatsAppRecipients();
 updateScheduleFields();
 renderReminders();

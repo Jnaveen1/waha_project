@@ -61,7 +61,10 @@ from database import (
     create_pending_order , 
     confirm_customer_order ,
     get_daily_financial_report_data , 
-    save_reminder 
+    save_reminder ,
+    save_contact,
+    get_saved_contacts,
+    delete_saved_contact
 )
 
 ALLOWED_GROUP_ID = "120363423099150354@g.us"
@@ -2889,3 +2892,11 @@ def change_reminder_status(reminder_id, is_active):
         is_active
     )
 
+def create_saved_contact(request):
+    return save_contact(request)
+
+def fetch_saved_contacts():
+    return get_saved_contacts()
+
+def remove_saved_contact(contact_id):
+    return delete_saved_contact(contact_id)

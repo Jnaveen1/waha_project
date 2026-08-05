@@ -1,7 +1,7 @@
 from database import engine, Base
 import models
 
-from models import Reminder, ReminderRecipient 
+import models 
 
 print("Creating database tables...")
 
