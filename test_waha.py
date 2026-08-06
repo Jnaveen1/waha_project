@@ -46,21 +46,25 @@
 # print(order.confirmed_at)
 
 
-import requests
+# import requests
 
-url = "http://127.0.0.1:8000/test-farm"
+# url = "http://127.0.0.1:8000/test-farm"
 
-message = {
-    "message": "Reminder: Please send today's farm production, feed, mortality and sales details."
-}
+# message = {
+#     "message": "Reminder: Please send today's farm production, feed, mortality and sales details."
+# }
 
-response = requests.post(
-    url,
-    json=message,
-    timeout=30,
-)
+# response = requests.post(
+#     url,
+#     json=message,
+#     timeout=30,
+# )
 
-print("Status code:", response.status_code)
-print("Response:", response.text)
+# print("Status code:", response.status_code)
+# print("Response:", response.text)
 
+from email_service import send_test_email
 
+send_test_email( "Test Email",
+    "This is only a test."
+    )

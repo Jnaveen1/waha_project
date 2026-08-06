@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from service import save_message, process_request , send_message , create_reminder
+from service import save_message, process_request , send_message , create_reminder , edit_report, remove_report
 from llm import understand_message , translate_response
 import base64
 import os
@@ -11,7 +11,7 @@ from typing import List, Optional
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from service import fetch_all_reminders , remove_reminder , change_reminder_status , create_saved_contact, fetch_saved_contacts, remove_saved_contact 
+from service import fetch_all_reminders , remove_reminder , change_reminder_status , create_saved_contact, fetch_saved_contacts, remove_saved_contact , create_reminder , create_report , fetch_reports 
 from contextlib import asynccontextmanager
 from scheduler import start_scheduler, stop_scheduler\
 
@@ -48,6 +48,7 @@ class ReminderRecipientRequest(BaseModel):
     recipient_type: str
 
 class ReminderCreateRequest(BaseModel):
+    report_id: int
     message: str
     repeat_type: str
 
@@ -66,6 +67,11 @@ class SavedContactRequest(BaseModel):
     name: str
     whatsapp_number: str
 
+class ReminderReportRequest(BaseModel):
+    report_name: str
+    task_title: str
+    message: str
+    details: Optional[str] = None
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -424,4 +430,123 @@ def delete_contact(contact_id: int):
             "message": "Unable to delete contact"
         }
 
-        
+@app.post("/api/reports")
+def add_report(request: ReminderReportRequest):
+
+    try:
+        report = create_report(request)
+
+        return {
+            "success": True,
+            "message": "Report saved successfully",
+            "report": report
+        }
+
+    except ValueError as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+    except Exception as error:
+        print("Create report error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to save report"
+        }        
+
+@app.get("/api/reports")
+def list_reports():
+
+    try:
+        reports = fetch_reports()
+
+        return {
+            "success": True,
+            "reports": reports
+        }
+
+    except Exception as error:
+        print("Load reports error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to load reports",
+            "reports": []
+        }
+
+@app.put("/api/reports/{report_id}")
+def update_report_api(
+    report_id: int,
+    request: ReminderReportRequest
+):
+
+    try:
+        report = edit_report(
+            report_id,
+            request
+        )
+
+        if not report:
+            return {
+                "success": False,
+                "message": "Report not found"
+            }
+
+        return {
+            "success": True,
+            "message": "Report updated successfully",
+            "report": report
+        }
+
+    except ValueError as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+    except Exception as error:
+        print("Update report error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to update report"
+        }
+
+@app.delete("/api/reports/{report_id}")
+def delete_report_api(report_id: int):
+
+    try:
+        deleted = remove_report(report_id)
+
+        if not deleted:
+            return {
+                "success": False,
+                "message": "Report not found"
+            }
+
+        return {
+            "success": True,
+            "message": "Report deleted successfully"
+        }
+
+    except ValueError as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+    except Exception as error:
+        print("Delete report error:", error)
+
+        return {
+            "success": False,
+            "message": "Unable to delete report"
+        }
+
+
+
+
+
+

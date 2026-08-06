@@ -1,3 +1,4 @@
+from reminder_service import WAHA_API_KEY
 from sqlalchemy import create_engine , func , or_
 from sqlalchemy.orm import sessionmaker
 from datetime import date , timedelta , datetime 
@@ -6,6 +7,16 @@ from difflib import get_close_matches
 from base import Base
 from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting , FarmFinancialSetting , FeedPriceSetting , CustomerOrder , Reminder, ReminderRecipient , SavedContact, ReminderReport 
 
+import re 
+import requests 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+WAHA_API_KEY = os.getenv(
+    "WAHA_API_KEY"
+)
 
 DATABASE_URL = "mysql+pymysql://root:sunfra%40123@localhost:3306/waha_db"
 engine = create_engine(
@@ -2344,6 +2355,7 @@ def save_reminder(request):
         ).time()
 
         reminder = Reminder(
+            report_id=request.report_id,
             message=request.message.strip(),
             repeat_type=request.repeat_type,
             schedule_date=schedule_date,
@@ -2423,26 +2435,38 @@ def get_all_reminders():
 
             result.append({
                 "id": reminder.id,
+                "report_id": reminder.report_id,
+
+                "report_name": (
+                    reminder.report.report_name
+                    if reminder.report
+                    else "Deleted Report"
+                ),
+
+                "task_title": (
+                    reminder.report.task_title
+                    if reminder.report
+                    else None
+                ),
+
                 "message": reminder.message,
                 "repeat_type": reminder.repeat_type,
+
                 "schedule_date": (
                     reminder.schedule_date.isoformat()
                     if reminder.schedule_date
                     else None
                 ),
+
                 "schedule_time": (
                     reminder.schedule_time.strftime("%H:%M")
                     if reminder.schedule_time
                     else None
                 ),
+
                 "week_day": reminder.week_day,
                 "is_active": reminder.is_active,
                 "job_id": reminder.job_id,
-                "created_at": (
-                    reminder.created_at.isoformat()
-                    if reminder.created_at
-                    else None
-                ),
                 "recipients": recipients
             })
 
@@ -2534,8 +2558,29 @@ def get_reminder_by_id(reminder_id):
 
         return {
             "id": reminder.id,
+
+            "report_name": (
+                reminder.report.report_name
+                if reminder.report
+                else "Reminder"
+            ),
+
+            "task_title": (
+                reminder.report.task_title
+                if reminder.report
+                else None
+            ),
+
             "message": reminder.message,
+
+            "details": (
+                reminder.report.details
+                if reminder.report
+                else None
+            ),
+
             "is_active": reminder.is_active,
+
             "recipients": [
                 {
                     "recipient_name": recipient.recipient_name,
@@ -2555,15 +2600,31 @@ def save_contact(request):
 
     try:
         name = request.name.strip()
-        number = request.whatsapp_number.strip()
+
+        number = re.sub(
+            r"\D",
+            "",
+            request.whatsapp_number
+        )
 
         if not name:
-            raise ValueError("Contact name is required")
+            raise ValueError(
+                "Contact name is required"
+            )
 
         if not number:
-            raise ValueError("WhatsApp number is required")
+            raise ValueError(
+                "WhatsApp number is required"
+            )
 
-        number = number.replace(" ", "").replace("+", "")
+        # Indian mobile number entered without country code
+        if len(number) == 10:
+            number = f"91{number}"
+
+        if len(number) < 11 or len(number) > 15:
+            raise ValueError(
+                "Enter a valid WhatsApp number with country code"
+            )
 
         existing_contact = (
             db.query(SavedContact)
@@ -2578,7 +2639,35 @@ def save_contact(request):
                 "This WhatsApp number is already saved"
             )
 
-        chat_id = f"{number}@c.us"
+        headers = {
+            "X-Api-Key": WAHA_API_KEY
+        }
+
+        response = requests.get(
+            "http://localhost:3000/api/contacts/check-exists",
+            headers=headers,
+            params={
+                "phone": number,
+                "session": "default"
+            },
+            timeout=30
+        )
+
+        response.raise_for_status()
+
+        result = response.json()
+
+        if not result.get("numberExists"):
+            raise ValueError(
+                "This number is not registered on WhatsApp"
+            )
+
+        chat_id = result.get("chatId")
+
+        if not chat_id:
+            raise ValueError(
+                "Unable to get WhatsApp chat ID"
+            )
 
         contact = SavedContact(
             name=name,
@@ -2593,9 +2682,27 @@ def save_contact(request):
         return {
             "id": contact.id,
             "name": contact.name,
-            "whatsapp_number": contact.whatsapp_number,
-            "chat_id": contact.chat_id
+            "whatsapp_number":
+                contact.whatsapp_number,
+            "chat_id": contact.chat_id,
+            "recipient_type": "contact"
         }
+
+    except ValueError:
+        db.rollback()
+        raise
+
+    except requests.RequestException as error:
+        db.rollback()
+
+        print(
+            "WAHA contact validation error:",
+            error
+        )
+
+        raise ValueError(
+            "Unable to validate the WhatsApp number"
+        )
 
     except Exception:
         db.rollback()
@@ -2603,7 +2710,7 @@ def save_contact(request):
 
     finally:
         db.close()
-
+  
 def get_saved_contacts():
 
     db = SessionLocal()
@@ -2654,5 +2761,231 @@ def delete_saved_contact(contact_id):
 
     finally:
         db.close()
+
+def save_reminder_report(request):
+
+    db = SessionLocal()
+
+    try:
+        report = ReminderReport(
+            report_name=request.report_name.strip(),
+            task_title=request.task_title.strip(),
+            message=request.message.strip(),
+            details=(
+                request.details.strip()
+                if request.details
+                else None
+            ),
+            is_active=True
+        )
+
+        db.add(report)
+        db.commit()
+        db.refresh(report)
+
+        return {
+            "id": report.id,
+            "report_name": report.report_name,
+            "task_title": report.task_title,
+            "message": report.message,
+            "details": report.details,
+            "is_active": report.is_active
+        }
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+def get_reminder_reports():
+
+    db = SessionLocal()
+
+    try:
+        reports = (
+            db.query(ReminderReport)
+            .order_by(ReminderReport.id.desc())
+            .all()
+        )
+
+        return [
+            {
+                "id": report.id,
+                "report_name": report.report_name,
+                "task_title": report.task_title,
+                "message": report.message,
+                "details": report.details,
+                "is_active": report.is_active
+            }
+            for report in reports
+        ]
+
+    finally:
+        db.close()
+
+def update_reminder_report(report_id, request):
+
+    db = SessionLocal()
+
+    try:
+        report = (
+            db.query(ReminderReport)
+            .filter(ReminderReport.id == report_id)
+            .first()
+        )
+
+        if not report:
+            return None
+
+        report.report_name = request.report_name.strip()
+        report.task_title = request.task_title.strip()
+        report.message = request.message.strip()
+
+        report.details = (
+            request.details.strip()
+            if request.details
+            else None
+        )
+
+        db.commit()
+        db.refresh(report)
+
+        return {
+            "id": report.id,
+            "report_name": report.report_name,
+            "task_title": report.task_title,
+            "message": report.message,
+            "details": report.details,
+            "is_active": report.is_active
+        }
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+def delete_reminder_report(report_id):
+
+    db = SessionLocal()
+
+    try:
+        report = (
+            db.query(ReminderReport)
+            .filter(ReminderReport.id == report_id)
+            .first()
+        )
+
+        if not report:
+            return False
+
+        linked_reminder = (
+            db.query(Reminder)
+            .filter(Reminder.report_id == report_id)
+            .first()
+        )
+
+        if linked_reminder:
+            raise ValueError(
+                "This report is already used by a reminder and cannot be deleted"
+            )
+
+        db.delete(report)
+        db.commit()
+
+        return True
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+def update_reminder_report(report_id, request):
+
+    db = SessionLocal()
+
+    try:
+        report = (
+            db.query(ReminderReport)
+            .filter(ReminderReport.id == report_id)
+            .first()
+        )
+
+        if not report:
+            return None
+
+        report.report_name = request.report_name.strip()
+        report.task_title = request.task_title.strip()
+        report.message = request.message.strip()
+
+        report.details = (
+            request.details.strip()
+            if request.details
+            else None
+        )
+
+        db.commit()
+        db.refresh(report)
+
+        return {
+            "id": report.id,
+            "report_name": report.report_name,
+            "task_title": report.task_title,
+            "message": report.message,
+            "details": report.details,
+            "is_active": report.is_active
+        }
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+def delete_reminder_report(report_id):
+
+    db = SessionLocal()
+
+    try:
+        report = (
+            db.query(ReminderReport)
+            .filter(ReminderReport.id == report_id)
+            .first()
+        )
+
+        if not report:
+            return False
+
+        linked_reminder = (
+            db.query(Reminder)
+            .filter(Reminder.report_id == report_id)
+            .first()
+        )
+
+        if linked_reminder:
+            raise ValueError(
+                "This report is already used by a reminder and cannot be deleted"
+            )
+
+        db.delete(report)
+        db.commit()
+
+        return True
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+
+
 
 

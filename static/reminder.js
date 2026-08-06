@@ -1,3 +1,93 @@
+const contactSearchInput = document.getElementById(
+    "contactSearchInput"
+);
+
+const editingReportIdInput = document.getElementById(
+    "editingReportId"
+);
+
+const saveReportButton = document.getElementById(
+    "saveReportButton"
+);
+
+const cancelReportEditButton = document.getElementById(
+    "cancelReportEditButton"
+);
+
+const summaryReminderCount = document.getElementById(
+    "summaryReminderCount"
+);
+
+const openReportsButton = document.getElementById(
+    "openReportsButton"
+);
+
+const closeReportsButton = document.getElementById(
+    "closeReportsButton"
+);
+
+const reportsModal = document.getElementById(
+    "reportsModal"
+);
+
+const reportForm = document.getElementById(
+    "reportForm"
+);
+
+const reportNameInput = document.getElementById(
+    "reportName"
+);
+
+const taskTitleInput = document.getElementById(
+    "taskTitle"
+);
+
+const reportMessageInput = document.getElementById(
+    "reportMessage"
+);
+
+const reportDetailsInput = document.getElementById(
+    "reportDetails"
+);
+
+const reportManagementList = document.getElementById(
+    "reportManagementList"
+);
+
+const reportManagementCount = document.getElementById(
+    "reportManagementCount"
+);
+
+const summaryReportCount = document.getElementById(
+    "summaryReportCount"
+);
+
+const reportSelect = document.getElementById(
+    "reportSelect"
+);
+
+const selectedReportName = document.getElementById(
+    "selectedReportName"
+);
+
+const selectedTaskTitle = document.getElementById(
+    "selectedTaskTitle"
+);
+
+const selectedReportMessage = document.getElementById(
+    "selectedReportMessage"
+);
+
+const selectedReportDetails = document.getElementById(
+    "selectedReportDetails"
+);
+
+const scheduleTimeInput = document.getElementById(
+    "scheduleTime"
+);
+
+let reports = [];
+
 const openReminderFormButton = document.getElementById(
     "openReminderFormButton"
 );
@@ -56,12 +146,11 @@ const addContactButton = document.getElementById(
 let contacts = [];
 let groups = [];
 let reminders = [];
-
+const selectedContactIds = new Set();
 
 function openReminderModal() {
     reminderModal.classList.remove("hidden");
 }
-
 
 function closeReminderModal() {
     reminderModal.classList.add("hidden");
@@ -75,6 +164,24 @@ function closeReminderModal() {
     updateScheduleFields();
 }
 
+function openReportsModal() {
+    console.log("Opening reports modal");
+
+    if (!reportsModal) {
+        console.error("reportsModal element not found");
+        return;
+    }
+
+    reportsModal.classList.remove("hidden");
+}
+
+function closeReportsModal() {
+    if (!reportsModal) {
+        return;
+    }
+
+    reportsModal.classList.add("hidden");
+}
 
 function createRecipientItem(recipient) {
     const item = document.createElement("label");
@@ -100,6 +207,54 @@ function createRecipientItem(recipient) {
     item.appendChild(recipientDetails);
 
     return item;
+}
+
+function updateReportPreview() {
+    const reportId = Number(reportSelect.value);
+
+    const selectedReport = reports.find(
+        (report) => report.id === reportId
+    );
+
+    if (!selectedReport) {
+        selectedReportName.textContent =
+            "No report selected";
+
+        selectedTaskTitle.textContent =
+            "Select a report to preview its task.";
+
+        selectedReportMessage.textContent =
+            "The saved report message will appear here.";
+
+        selectedReportDetails.textContent = "";
+        selectedReportDetails.classList.add("hidden");
+
+        return;
+    }
+
+    selectedReportName.textContent =
+        selectedReport.report_name;
+
+    selectedTaskTitle.textContent =
+        selectedReport.task_title;
+
+    selectedReportMessage.textContent =
+        selectedReport.message;
+
+    if (selectedReport.details) {
+        selectedReportDetails.textContent =
+            selectedReport.details;
+
+        selectedReportDetails.classList.remove(
+            "hidden"
+        );
+    } else {
+        selectedReportDetails.textContent = "";
+
+        selectedReportDetails.classList.add(
+            "hidden"
+        );
+    }
 }
 
 async function loadWhatsAppRecipients() {
@@ -230,6 +385,18 @@ async function addSavedContact() {
 
         await loadSavedContacts();
 
+        const newChatId = result.contact?.chat_id;
+
+        if (newChatId) {
+            const newCheckbox = contactList.querySelector(
+                `input[value="${newChatId}"]`
+            );
+
+            if (newCheckbox) {
+                newCheckbox.checked = true;
+            }
+        }
+
         alert("Contact saved successfully.");
 
     } catch (error) {
@@ -242,32 +409,281 @@ async function addSavedContact() {
     }
 }
 
-function loadContacts() {
+async function handleReportSubmit(event) {
+    event.preventDefault();
+
+    const reportData = {
+        report_name: reportNameInput.value.trim(),
+        task_title: taskTitleInput.value.trim(),
+        message: reportMessageInput.value.trim(),
+        details: reportDetailsInput.value.trim() || null
+    };
+
+    const editingReportId =
+        editingReportIdInput.value;
+
+    const isEditing = Boolean(editingReportId);
+
+    const url = isEditing
+        ? `/api/reports/${editingReportId}`
+        : "/api/reports";
+
+    const method = isEditing
+        ? "PUT"
+        : "POST";
+
+    try {
+        const response = await fetch(
+            url,
+            {
+                method: method,
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(reportData)
+            }
+        );
+
+        const result = await response.json();
+
+        if (!result.success) {
+            alert(
+                result.message ||
+                "Unable to save report."
+            );
+            return;
+        }
+
+        resetReportForm();
+
+        await loadReports();
+
+        alert(
+            isEditing
+                ? "Report updated successfully."
+                : "Report saved successfully."
+        );
+
+    } catch (error) {
+        console.error(
+            "Save report error:",
+            error
+        );
+
+        alert("Unable to connect to the server.");
+    }
+}
+
+async function loadReports() {
+    try {
+        const response = await fetch("/api/reports");
+
+        const result = await response.json();
+
+        if (!result.success) {
+            reports = [];
+            renderReports();
+            return;
+        }
+
+        reports = result.reports || [];
+
+        renderReports();
+
+    } catch (error) {
+        console.error(
+            "Load reports error:",
+            error
+        );
+
+        reports = [];
+        renderReports();
+    }
+}
+
+function renderReports() {
+    reportManagementList.innerHTML = "";
+    reportSelect.innerHTML = `
+        <option value="">
+            Select a report
+        </option>
+    `;
+
+    reportManagementCount.textContent =
+        `${reports.length} report${reports.length === 1 ? "" : "s"}`;
+
+    summaryReportCount.textContent =
+        reports.length;
+
+    if (reports.length === 0) {
+        reportManagementList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    ▤
+                </div>
+
+                <h4>
+                    No reports created
+                </h4>
+
+                <p>
+                    Create your first reusable reminder report above.
+                </p>
+            </div>
+        `;
+        
+        updateReportPreview();
+
+        return;
+    }
+
+    reports.forEach((report) => {
+        const option = document.createElement("option");
+
+        option.value = report.id;
+        option.textContent = report.report_name;
+
+        reportSelect.appendChild(option);
+
+        const card = document.createElement("article");
+
+        card.className = "report-card";
+
+        card.innerHTML = `
+            <div class="report-card-header">
+                <div>
+                    <h4>${report.report_name}</h4>
+
+                    <span class="task-title">
+                        ${report.task_title}
+                    </span>
+                </div>
+            </div>
+
+            <p class="report-message">
+                ${report.message}
+            </p>
+        `;
+        
+        card.innerHTML = `
+            <div class="report-card-header">
+                <div>
+                    <h4>${report.report_name}</h4>
+
+                    <span class="task-title">
+                        ${report.task_title}
+                    </span>
+                </div>
+            </div>
+
+            <p class="report-message">
+                ${report.message}
+            </p>
+
+            <div class="report-card-actions">
+
+                <button
+                    type="button"
+                    class="edit-button"
+                    data-report-id="${report.id}"
+                >
+                    Edit
+                </button>
+
+                <button
+                    type="button"
+                    class="delete-button"
+                    data-report-id="${report.id}"
+                >
+                    Delete
+                </button>
+
+            </div>
+        `;
+
+        card
+            .querySelector(".edit-button")
+            .addEventListener("click", () => {
+                startReportEdit(report.id);
+            });
+
+        card
+            .querySelector(".delete-button")
+            .addEventListener("click", () => {
+                deleteReport(report.id);
+            });
+
+        reportManagementList.appendChild(card);
+    });
+}
+
+function loadContacts(searchText = "") {
     contactList.innerHTML = "";
 
-    if (contacts.length === 0) {
+    const normalizedSearch =
+        searchText.trim().toLowerCase();
+
+    const filteredContacts = contacts.filter(
+        (contact) => {
+            const name =
+                contact.name.toLowerCase();
+
+            const number =
+                contact.whatsapp_number.toLowerCase();
+
+            return (
+                name.includes(normalizedSearch) ||
+                number.includes(normalizedSearch)
+            );
+        }
+    );
+
+    if (filteredContacts.length === 0) {
         contactList.innerHTML = `
             <p class="empty-message">
-                No saved contacts found.
+                No matching contacts found.
             </p>
         `;
 
         return;
     }
 
-    contacts.forEach((contact) => {
-        const item = document.createElement("label");
+    filteredContacts.forEach((contact) => {
+        const item =
+            document.createElement("label");
 
         item.className = "recipient-item";
 
-        const checkbox = document.createElement("input");
+        const checkbox =
+            document.createElement("input");
 
         checkbox.type = "checkbox";
         checkbox.value = contact.chat_id;
         checkbox.dataset.name = contact.name;
         checkbox.dataset.type = "contact";
 
-        const details = document.createElement("span");
+        checkbox.checked =
+            selectedContactIds.has(
+                contact.chat_id
+            );
+
+        checkbox.addEventListener(
+            "change",
+            () => {
+                if (checkbox.checked) {
+                    selectedContactIds.add(
+                        contact.chat_id
+                    );
+                } else {
+                    selectedContactIds.delete(
+                        contact.chat_id
+                    );
+                }
+            }
+        );
+
+        const details =
+            document.createElement("span");
 
         details.textContent =
             `${contact.name} (${contact.whatsapp_number})`;
@@ -302,18 +718,23 @@ function loadGroups() {
 }
 
 function clearSelectedRecipients() {
-    const selectedCheckboxes = document.querySelectorAll(
-        '.recipient-list input[type="checkbox"]'
-    );
+    selectedContactIds.clear();
 
-    selectedCheckboxes.forEach((checkbox) => {
+    const allCheckboxes =
+        document.querySelectorAll(
+            '.recipient-list input[type="checkbox"]'
+        );
+
+    allCheckboxes.forEach((checkbox) => {
         checkbox.checked = false;
     });
 
-    selectAllContactsButton.textContent = "Select all";
-    selectAllGroupsButton.textContent = "Select all";
-}
+    selectAllContactsButton.textContent =
+        "Select all";
 
+    selectAllGroupsButton.textContent =
+        "Select all";
+}
 
 function toggleAllRecipients(container, button) {
     const checkboxes = container.querySelectorAll(
@@ -332,7 +753,6 @@ function toggleAllRecipients(container, button) {
         ? "Select all"
         : "Clear all";
 }
-
 
 function updateScheduleFields() {
     const selectedRepeatType = repeatType.value;
@@ -354,21 +774,44 @@ function updateScheduleFields() {
     }
 }
 
-
 function getSelectedRecipients() {
-    const selectedCheckboxes = document.querySelectorAll(
-        '.recipient-list input[type="checkbox"]:checked'
+    const selectedRecipients = [];
+
+    contacts.forEach((contact) => {
+        if (
+            selectedContactIds.has(
+                contact.chat_id
+            )
+        ) {
+            selectedRecipients.push({
+                recipient_name: contact.name,
+                chat_id: contact.chat_id,
+                recipient_type: "contact"
+            });
+        }
+    });
+
+    const selectedGroupCheckboxes =
+        groupList.querySelectorAll(
+            'input[type="checkbox"]:checked'
+        );
+
+    selectedGroupCheckboxes.forEach(
+        (checkbox) => {
+            selectedRecipients.push({
+                recipient_name:
+                    checkbox.dataset.name,
+
+                chat_id: checkbox.value,
+
+                recipient_type:
+                    checkbox.dataset.type
+            });
+        }
     );
 
-    return Array.from(selectedCheckboxes).map((checkbox) => {
-        return {
-            recipient_name: checkbox.dataset.name,
-            chat_id: checkbox.value,
-            recipient_type: checkbox.dataset.type
-        };
-    });
+    return selectedRecipients;
 }
-
 
 function formatSchedule(reminder) {
     if (reminder.repeatType === "once") {
@@ -381,7 +824,6 @@ function formatSchedule(reminder) {
 
     return `${reminder.weekDay} at ${reminder.scheduleTime}`;
 }
-
 
 function createStatusBadge(isActive) {
     const badge = document.createElement("span");
@@ -403,13 +845,17 @@ function createStatusBadge(isActive) {
     return badge;
 }
 
-
 function renderReminders() {
     reminderTableBody.innerHTML = "";
 
     reminderCount.textContent =
         `${reminders.length} reminder${reminders.length === 1 ? "" : "s"}`;
 
+    if (summaryReminderCount) {
+        summaryReminderCount.textContent =
+            reminders.length;
+    }
+    
     if (reminders.length === 0) {
         const row = document.createElement("tr");
 
@@ -428,7 +874,20 @@ function renderReminders() {
         const row = document.createElement("tr");
 
         const messageCell = document.createElement("td");
-        messageCell.textContent = reminder.message;
+
+        const reportName = document.createElement("strong");
+        reportName.textContent = reminder.reportName;
+
+        messageCell.appendChild(reportName);
+
+        if (reminder.taskTitle) {
+            const taskTitle = document.createElement("small");
+
+            taskTitle.className = "table-subtext";
+            taskTitle.textContent = reminder.taskTitle;
+
+            messageCell.appendChild(taskTitle);
+        }
 
         const recipientCell = document.createElement("td");
         recipientCell.textContent = reminder.recipients
@@ -482,6 +941,84 @@ function renderReminders() {
     });
 }
 
+function startReportEdit(reportId) {
+    const report = reports.find(
+        (item) => item.id === reportId
+    );
+
+    if (!report) {
+        alert("Report not found.");
+        return;
+    }
+
+    editingReportIdInput.value = report.id;
+    reportNameInput.value = report.report_name;
+    taskTitleInput.value = report.task_title;
+    reportMessageInput.value = report.message;
+    reportDetailsInput.value = report.details || "";
+
+    saveReportButton.textContent = "Update Report";
+
+    cancelReportEditButton.classList.remove(
+        "hidden"
+    );
+
+    reportNameInput.focus();
+}
+
+function resetReportForm() {
+    reportForm.reset();
+
+    editingReportIdInput.value = "";
+
+    saveReportButton.textContent =
+        "Save Report";
+
+    cancelReportEditButton.classList.add(
+        "hidden"
+    );
+}
+
+async function deleteReport(reportId) {
+    const confirmed = confirm(
+        "Are you sure you want to delete this report?"
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/reports/${reportId}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const result = await response.json();
+
+        if (!result.success) {
+            alert(
+                result.message ||
+                "Unable to delete report."
+            );
+            return;
+        }
+
+        await loadReports();
+
+        alert("Report deleted successfully.");
+
+    } catch (error) {
+        console.error(
+            "Delete report error:",
+            error
+        );
+
+        alert("Unable to connect to the server.");
+    }
+}
 
 async function toggleReminderStatus(reminderId) {
     const reminder = reminders.find(
@@ -572,7 +1109,26 @@ async function deleteReminder(reminderId) {
 async function handleReminderSubmit(event) {
     event.preventDefault();
 
-    const selectedRecipients = getSelectedRecipients();
+    const selectedReportId = Number(
+        reportSelect.value
+    );
+
+    if (!selectedReportId) {
+        alert("Please select a report.");
+        return;
+    }
+
+    const selectedReport = reports.find(
+        (report) => report.id === selectedReportId
+    );
+
+    if (!selectedReport) {
+        alert("Selected report was not found.");
+        return;
+    }
+
+    const selectedRecipients =
+        getSelectedRecipients();
 
     if (selectedRecipients.length === 0) {
         recipientError.classList.remove("hidden");
@@ -581,66 +1137,90 @@ async function handleReminderSubmit(event) {
 
     recipientError.classList.add("hidden");
 
-    const newReminder = {
-        message: document
-            .getElementById("reminderMessage")
-            .value
-            .trim(),
+    const scheduleTime =
+        scheduleTimeInput.value;
+
+    if (!scheduleTime) {
+        alert("Schedule time is required.");
+        return;
+    }
+
+    const reminderData = {
+        report_id: selectedReport.id,
+
+        // Save a snapshot of the report message
+        message: selectedReport.message,
 
         recipients: selectedRecipients,
 
         repeat_type: repeatType.value,
 
-        schedule_date: scheduleDate.value || null,
+        schedule_date:
+            repeatType.value === "once"
+                ? scheduleDate.value || null
+                : null,
 
-        schedule_time: document
-            .getElementById("scheduleTime")
-            .value,
+        schedule_time: scheduleTime,
 
-        week_day: weekDay.value || null
+        week_day:
+            repeatType.value === "weekly"
+                ? weekDay.value || null
+                : null
     };
 
-    if (!newReminder.message) {
-        alert("Reminder message is required.");
-        return;
-    }
-
-    if (!newReminder.schedule_time) {
-        alert("Schedule time is required.");
-        return;
-    }
+    console.log(
+        "Reminder request:",
+        reminderData
+    );
 
     try {
-        const response = await fetch("/api/reminders", {
-            method: "POST",
+        const response = await fetch(
+            "/api/reminders",
+            {
+                method: "POST",
 
-            headers: {
-                "Content-Type": "application/json"
-            },
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
 
-            body: JSON.stringify(newReminder)
-        });
+                body: JSON.stringify(
+                    reminderData
+                )
+            }
+        );
 
         const result = await response.json();
 
-        console.log("Backend response:", result);
+        console.log(
+            "Create reminder response:",
+            result
+        );
 
-        if (result.success) {
-            alert("Reminder saved successfully.");
+        if (!result.success) {
+            alert(
+                result.message ||
+                "Unable to save reminder."
+            );
 
-            closeReminderModal();
-
-             await loadReminders();
-
-            // We will load reminders from MySQL in the next step.
-        } else {
-            alert(result.message || "Unable to save reminder.");
+            return;
         }
 
-    } catch (error) {
-        console.error("Save reminder error:", error);
+        alert("Reminder saved successfully.");
 
-        alert("Unable to connect to the server.");
+        closeReminderModal();
+
+        await loadReminders();
+
+    } catch (error) {
+        console.error(
+            "Save reminder error:",
+            error
+        );
+
+        alert(
+            "Unable to connect to the server."
+        );
     }
 }
 
@@ -660,6 +1240,13 @@ async function loadReminders() {
         reminders = result.reminders.map((reminder) => {
             return {
                 id: reminder.id,
+
+                reportName:
+                    reminder.report_name || "Unnamed Report",
+
+                taskTitle:
+                    reminder.task_title || "",
+
                 message: reminder.message,
                 recipients: reminder.recipients,
                 repeatType: reminder.repeat_type,
@@ -694,20 +1281,54 @@ cancelReminderButton.addEventListener(
     closeReminderModal
 );
 
-
 repeatType.addEventListener(
     "change",
     updateScheduleFields
 );
 
+selectAllContactsButton.addEventListener(
+    "click",
+    () => {
+        const visibleCheckboxes =
+            contactList.querySelectorAll(
+                'input[type="checkbox"]'
+            );
 
-selectAllContactsButton.addEventListener("click", () => {
-    toggleAllRecipients(
-        contactList,
-        selectAllContactsButton
-    );
-});
+        if (visibleCheckboxes.length === 0) {
+            return;
+        }
 
+        const allVisibleSelected =
+            Array.from(visibleCheckboxes).every(
+                (checkbox) =>
+                    selectedContactIds.has(
+                        checkbox.value
+                    )
+            );
+
+        visibleCheckboxes.forEach(
+            (checkbox) => {
+                checkbox.checked =
+                    !allVisibleSelected;
+
+                if (!allVisibleSelected) {
+                    selectedContactIds.add(
+                        checkbox.value
+                    );
+                } else {
+                    selectedContactIds.delete(
+                        checkbox.value
+                    );
+                }
+            }
+        );
+
+        selectAllContactsButton.textContent =
+            allVisibleSelected
+                ? "Select all"
+                : "Clear visible";
+    }
+);
 
 selectAllGroupsButton.addEventListener("click", () => {
     toggleAllRecipients(
@@ -715,7 +1336,6 @@ selectAllGroupsButton.addEventListener("click", () => {
         selectAllGroupsButton
     );
 });
-
 
 reminderForm.addEventListener(
     "submit",
@@ -727,12 +1347,138 @@ addContactButton.addEventListener(
     addSavedContact
 );
 
+reportForm.addEventListener(
+    "submit",
+    handleReportSubmit
+);
+
+reportSelect.addEventListener(
+    "change",
+    updateReportPreview
+);
+
+cancelReportEditButton.addEventListener(
+    "click",
+    resetReportForm
+);
+
+if (contactSearchInput) {
+    contactSearchInput.addEventListener(
+        "input",
+        () => {
+            loadContacts(contactSearchInput.value);
+        }
+    );
+}
+
+if (openReportsButton) {
+    openReportsButton.addEventListener(
+        "click",
+        openReportsModal
+    );
+} else {
+    console.error(
+        "openReportsButton element not found"
+    );
+}
+
+if (closeReportsButton) {
+    closeReportsButton.addEventListener(
+        "click",
+        closeReportsModal
+    );
+} else {
+    console.error(
+        "closeReportsButton element not found"
+    );
+}
+
+if (openReminderFormButton) {
+    openReminderFormButton.addEventListener(
+        "click",
+        openReminderModal
+    );
+}
+
+if (closeReminderFormButton) {
+    closeReminderFormButton.addEventListener(
+        "click",
+        closeReminderModal
+    );
+}
+
+if (cancelReminderButton) {
+    cancelReminderButton.addEventListener(
+        "click",
+        closeReminderModal
+    );
+}
+
+if (openReportsButton) {
+    openReportsButton.addEventListener(
+        "click",
+        openReportsModal
+    );
+}
+
+if (closeReportsButton) {
+    closeReportsButton.addEventListener(
+        "click",
+        closeReportsModal
+    );
+}
+
+if (addContactButton) {
+    addContactButton.addEventListener(
+        "click",
+        addSavedContact
+    );
+}
+
+if (reportForm) {
+    reportForm.addEventListener(
+        "submit",
+        handleReportSubmit
+    );
+}
+
+if (reminderForm) {
+    reminderForm.addEventListener(
+        "submit",
+        handleReminderSubmit
+    );
+}
+
 document
-    .querySelector(".modal-overlay")
-    .addEventListener("click", closeReminderModal);
+    .querySelectorAll(".modal-overlay")
+    .forEach((overlay) => {
 
+        overlay.addEventListener("click", () => {
 
+            const modalId = overlay.dataset.closeModal;
 
+            const modal = document.getElementById(
+                modalId
+            );
+
+            if (modal) {
+                modal.classList.add("hidden");
+            }
+
+        });
+
+    });
+
+document.addEventListener("keydown", (event) => {
+
+    if (event.key === "Escape") {
+        reminderModal.classList.add("hidden");
+        reportsModal.classList.add("hidden");
+    }
+
+});
+
+loadReports();
 loadSavedContacts();
 loadWhatsAppRecipients();
 updateScheduleFields();

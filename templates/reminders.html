@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
 
@@ -12,7 +13,7 @@
 
     <link
         rel="stylesheet"
-        href="/static/reminder.css"
+        href="/static/reminder.css?v=4"
     >
 </head>
 
@@ -20,32 +21,107 @@
 
     <div class="page-container">
 
+        <!-- Page Header -->
         <header class="page-header">
-            <div>
-                <h1>WhatsApp Reminder Manager</h1>
+
+            <div class="header-content">
+
+                <div class="header-badge">
+                    WhatsApp Automation
+                </div>
+
+                <h1>
+                    Reminder Manager
+                </h1>
 
                 <p>
-                    Create and manage scheduled WhatsApp reminders.
+                    Create reusable contacts, prepare message reports,
+                    and schedule WhatsApp reminders.
                 </p>
+
             </div>
 
-            <button
-                id="openReminderFormButton"
-                class="primary-button"
-                type="button"
-            >
-                + Add Reminder
-            </button>
+            <div class="header-actions">
+
+                <button
+                    id="openReminderFormButton"
+                    class="primary-button"
+                    type="button"
+                >
+                    + Add Reminder
+                </button>
+
+
+                <button
+                    id="openReportsButton"
+                    class="header-secondary-button"
+                    type="button"
+                >
+                    Manage Reports
+                </button>
+
+            </div>
+
         </header>
+
+        <!-- Summary Cards -->
+
+        <section class="summary-grid">
+
+            <article class="summary-card">
+
+                <span class="summary-label">
+                    Scheduled Reminders
+                </span>
+
+                <strong id="summaryReminderCount">
+                    0
+                </strong>
+
+                <small>
+                    Total reminders created
+                </small>
+
+            </article>
+
+            <article class="summary-card">
+
+                <span class="summary-label">
+                    Available Reports
+                </span>
+
+                <strong id="summaryReportCount">
+                    0
+                </strong>
+
+                <small>
+                    Reusable task messages
+                </small>
+
+            </article>
+
+        </section>
+
+        <!-- Scheduled Reminders -->
 
         <section class="reminder-section">
 
             <div class="section-heading">
-                <h2>Scheduled Reminders</h2>
+
+                <div>
+                    <h2>
+                        Scheduled Reminders
+                    </h2>
+
+                    <p>
+                        View and manage all scheduled WhatsApp reminders.
+                    </p>
+                </div>
 
                 <span id="reminderCount">
                     0 reminders
                 </span>
+
             </div>
 
             <div class="table-container">
@@ -54,7 +130,7 @@
 
                     <thead>
                         <tr>
-                            <th>Task / Message</th>
+                            <th>Report / Message</th>
                             <th>Recipients</th>
                             <th>Schedule</th>
                             <th>Status</th>
@@ -65,12 +141,14 @@
                     <tbody id="reminderTableBody">
 
                         <tr id="emptyReminderRow">
+
                             <td
                                 colspan="5"
                                 class="empty-message"
                             >
                                 No reminders created yet.
                             </td>
+
                         </tr>
 
                     </tbody>
@@ -83,23 +161,37 @@
 
     </div>
 
-    <!-- Add Reminder Modal -->
+
+    <!-- ================================================= -->
+    <!-- Add Reminder Modal                                -->
+    <!-- ================================================= -->
 
     <div
         id="reminderModal"
         class="modal hidden"
     >
 
-        <div class="modal-overlay"></div>
+        <div
+            class="modal-overlay"
+            data-close-modal="reminderModal"
+        ></div>
 
-        <div class="modal-content">
+        <div class="modal-content modal-large">
 
             <div class="modal-header">
+
                 <div>
-                    <h2>Add Reminder</h2>
+                    <span class="modal-label">
+                        Schedule Automation
+                    </span>
+
+                    <h2>
+                        Add Reminder
+                    </h2>
 
                     <p>
-                        Enter the reminder details and select recipients.
+                        Select a report, choose recipients, and configure
+                        when the reminder should run.
                     </p>
                 </div>
 
@@ -107,184 +199,393 @@
                     id="closeReminderFormButton"
                     class="close-button"
                     type="button"
+                    aria-label="Close reminder form"
                 >
                     &times;
                 </button>
+
             </div>
 
             <form id="reminderForm">
 
-                <div class="form-group">
-                    <label for="reminderMessage">
-                        Task / Reminder Message
-                    </label>
+                <!-- Report Selection -->
 
-                    <textarea
-                        id="reminderMessage"
-                        name="message"
-                        rows="4"
-                        placeholder="Example: Please submit today's farm report."
-                        required
-                    ></textarea>
-                </div>
+                <section class="form-section">
 
-                <div class="recipient-grid">
+                    <div class="form-section-heading">
 
-                    <div class="recipient-box">
-
-                        <div class="recipient-title">
-                            <h3>WhatsApp Numbers</h3>
-
-                            <button
-                                id="selectAllContactsButton"
-                                class="text-button"
-                                type="button"
-                            >
-                                Select all
-                            </button>
+                        <div class="section-number">
+                            1
                         </div>
 
-                        <div
-                            id="contactList"
-                            class="recipient-list"
-                        >
+                        <div>
+                            <h3>
+                                Select Report
+                            </h3>
+
+                            <p>
+                                Choose a reusable report message.
+                            </p>
                         </div>
 
-                        <div class="saved-contact-form">
-
-                            <input
-                                id="contactName"
-                                type="text"
-                                placeholder="Contact name"
-                            >
-
-                            <input
-                                id="contactNumber"
-                                type="text"
-                                placeholder="WhatsApp number"
-                            >
-
-                            <button
-                                id="addContactButton"
-                                type="button"
-                                class="primary-button"
-                            >
-                                Add Number
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                    <div class="recipient-box">
-
-                        <div class="recipient-title">
-                            <h3>WhatsApp Groups</h3>
-
-                            <button
-                                id="selectAllGroupsButton"
-                                class="text-button"
-                                type="button"
-                            >
-                                Select all
-                            </button>
-                        </div>
-
-                        <div
-                            id="groupList"
-                            class="recipient-list"
-                        >
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <p
-                    id="recipientError"
-                    class="error-message hidden"
-                >
-                    Select at least one WhatsApp number or group.
-                </p>
-
-                <div class="schedule-grid">
-
-                    <div class="form-group">
-                        <label for="repeatType">
-                            Repeat
-                        </label>
-
-                        <select
-                            id="repeatType"
-                            name="repeatType"
-                            required
-                        >
-                            <option value="once">
-                                One time
-                            </option>
-
-                            <option value="daily">
-                                Daily
-                            </option>
-
-                            <option value="weekly">
-                                Weekly
-                            </option>
-                        </select>
-                    </div>
-
-                    <div
-                        id="scheduleDateGroup"
-                        class="form-group"
-                    >
-                        <label for="scheduleDate">
-                            Date
-                        </label>
-
-                        <input
-                            id="scheduleDate"
-                            name="scheduleDate"
-                            type="date"
-                            required
-                        >
                     </div>
 
                     <div class="form-group">
-                        <label for="scheduleTime">
-                            Time
-                        </label>
 
-                        <input
-                            id="scheduleTime"
-                            name="scheduleTime"
-                            type="time"
-                            required
-                        >
-                    </div>
-
-                    <div
-                        id="weekDayGroup"
-                        class="form-group hidden"
-                    >
-                        <label for="weekDay">
-                            Day
+                        <label for="reportSelect">
+                            Report
                         </label>
 
                         <select
-                            id="weekDay"
-                            name="weekDay"
+                            id="reportSelect"
+                            name="reportId"
+                            required
                         >
-                            <option value="monday">Monday</option>
-                            <option value="tuesday">Tuesday</option>
-                            <option value="wednesday">Wednesday</option>
-                            <option value="thursday">Thursday</option>
-                            <option value="friday">Friday</option>
-                            <option value="saturday">Saturday</option>
-                            <option value="sunday">Sunday</option>
+                            <option value="">
+                                Select a report
+                            </option>
                         </select>
+
                     </div>
 
-                </div>
+                    <div
+                        id="reportPreview"
+                        class="report-preview"
+                    >
+
+                        <div class="report-preview-header">
+
+                            <span>
+                                Message Preview
+                            </span>
+
+                            <small id="selectedReportName">
+                                No report selected
+                            </small>
+
+                        </div>
+
+                        <h4 id="selectedTaskTitle">
+                            Select a report to preview its task.
+                        </h4>
+
+                        <p id="selectedReportMessage">
+                            The saved report message will appear here.
+                        </p>
+
+                        <div
+                            id="selectedReportDetails"
+                            class="report-details hidden"
+                        ></div>
+
+                    </div>
+
+                </section>
+
+                <!-- Recipient Selection -->
+
+                <section class="form-section">
+
+                    <div class="form-section-heading">
+
+                        <div class="section-number">
+                            2
+                        </div>
+
+                        <div>
+                            <h3>
+                                Select Recipients
+                            </h3>
+
+                            <p>
+                                Choose saved contacts and WhatsApp groups.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <div class="recipient-grid">
+
+                        <!-- Saved Contacts -->
+
+                        <div class="recipient-box saved-contacts-box">
+
+                            <div class="recipient-title">
+
+                                <div>
+                                    <h3>Saved Contacts</h3>
+
+                                    <p>
+                                        Select an existing contact or save a new WhatsApp number.
+                                    </p>
+                                </div>
+
+                                <button
+                                    id="selectAllContactsButton"
+                                    class="text-button"
+                                    type="button"
+                                >
+                                    Select all
+                                </button>
+
+                            </div>
+
+                            <div class="inline-contact-form">
+
+                                <div class="form-group">
+
+                                    <label for="contactName">
+                                        Contact Name
+                                    </label>
+
+                                    <input
+                                        id="contactName"
+                                        type="text"
+                                        placeholder="Example: Farm Manager"
+                                    >
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="contactNumber">
+                                        WhatsApp Number
+                                    </label>
+
+                                    <input
+                                        id="contactNumber"
+                                        type="text"
+                                        placeholder="Example: 919876543210"
+                                    >
+
+                                </div>
+
+                                <button
+                                    id="addContactButton"
+                                    class="primary-button inline-contact-button"
+                                    type="button"
+                                >
+                                    + Save Contact
+                                </button>
+
+                            </div>
+
+                            <p class="contact-help-text">
+                                Enter the number with country code and without spaces or the + symbol.
+                            </p>
+                            <div class="contact-search-box">
+
+                                <input
+                                    id="contactSearchInput"
+                                    type="text"
+                                    placeholder="Search contacts by name or number"
+                                >
+
+                            </div>
+                            <div class="recipient-list-header">
+
+                                <span>Available Contacts</span>
+
+                                <span id="savedContactCount">
+                                    0 contacts
+                                </span>
+
+                            </div>
+
+                            <div
+                                id="contactList"
+                                class="recipient-list"
+                            ></div>
+
+                        </div>
+
+                        <!-- WhatsApp Groups -->
+
+                        <div class="recipient-box">
+
+                            <div class="recipient-title">
+
+                                <div>
+                                    <h3>
+                                        WhatsApp Groups
+                                    </h3>
+
+                                    <p>
+                                        Groups loaded automatically from WAHA.
+                                    </p>
+                                </div>
+
+                                <button
+                                    id="selectAllGroupsButton"
+                                    class="text-button"
+                                    type="button"
+                                >
+                                    Select all
+                                </button>
+
+                            </div>
+
+                            <div class="recipient-list-header">
+
+                                <span>
+                                    Available Groups
+                                </span>
+
+                                <span id="groupCount">
+                                    0 groups
+                                </span>
+
+                            </div>
+
+                            <div
+                                id="groupList"
+                                class="recipient-list"
+                            ></div>
+
+                        </div>
+
+                    </div>
+
+                    <p
+                        id="recipientError"
+                        class="error-message hidden"
+                    >
+                        Select at least one saved contact or WhatsApp group.
+                    </p>
+
+                </section>
+
+                <!-- Schedule Configuration -->
+
+                <section class="form-section">
+
+                    <div class="form-section-heading">
+
+                        <div class="section-number">
+                            3
+                        </div>
+
+                        <div>
+                            <h3>
+                                Configure Schedule
+                            </h3>
+
+                            <p>
+                                Choose whether the reminder runs once,
+                                daily, or weekly.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <div class="schedule-grid">
+
+                        <div class="form-group">
+
+                            <label for="repeatType">
+                                Repeat Type
+                            </label>
+
+                            <select
+                                id="repeatType"
+                                name="repeatType"
+                                required
+                            >
+                                <option value="once">
+                                    One time
+                                </option>
+
+                                <option value="daily">
+                                    Daily
+                                </option>
+
+                                <option value="weekly">
+                                    Weekly
+                                </option>
+                            </select>
+
+                        </div>
+
+                        <div
+                            id="scheduleDateGroup"
+                            class="form-group"
+                        >
+
+                            <label for="scheduleDate">
+                                Date
+                            </label>
+
+                            <input
+                                id="scheduleDate"
+                                name="scheduleDate"
+                                type="date"
+                                required
+                            >
+
+                        </div>
+
+                        <div class="form-group">
+
+                            <label for="scheduleTime">
+                                Time
+                            </label>
+
+                            <input
+                                id="scheduleTime"
+                                name="scheduleTime"
+                                type="time"
+                                required
+                            >
+
+                        </div>
+
+                        <div
+                            id="weekDayGroup"
+                            class="form-group hidden"
+                        >
+
+                            <label for="weekDay">
+                                Day of Week
+                            </label>
+
+                            <select
+                                id="weekDay"
+                                name="weekDay"
+                            >
+                                <option value="monday">
+                                    Monday
+                                </option>
+
+                                <option value="tuesday">
+                                    Tuesday
+                                </option>
+
+                                <option value="wednesday">
+                                    Wednesday
+                                </option>
+
+                                <option value="thursday">
+                                    Thursday
+                                </option>
+
+                                <option value="friday">
+                                    Friday
+                                </option>
+
+                                <option value="saturday">
+                                    Saturday
+                                </option>
+
+                                <option value="sunday">
+                                    Sunday
+                                </option>
+                            </select>
+
+                        </div>
+
+                    </div>
+
+                </section>
 
                 <div class="form-actions">
 
@@ -311,7 +612,211 @@
 
     </div>
 
-    <script src="/static/reminder.js"></script>
+    <!-- ================================================= -->
+    <!-- Manage Reports Modal                              -->
+    <!-- ================================================= -->
+
+    <div
+        id="reportsModal"
+        class="modal hidden"
+    >
+
+        <div
+            class="modal-overlay"
+            data-close-modal="reportsModal"
+        ></div>
+
+        <div class="modal-content modal-large">
+
+            <div class="modal-header">
+
+                <div>
+                    <span class="modal-label">
+                        Message Templates
+                    </span>
+
+                    <h2>
+                        Manage Reports
+                    </h2>
+
+                    <p>
+                        Create reusable task messages for scheduled reminders.
+                    </p>
+                </div>
+
+                <button
+                    id="closeReportsButton"
+                    class="close-button"
+                    type="button"
+                    aria-label="Close reports modal"
+                >
+                    &times;
+                </button>
+
+            </div>
+
+            <form id="reportForm">
+
+                <input
+                    id="editingReportId"
+                    type="hidden"
+                >
+
+                <section class="form-section compact-section">
+
+                    <div class="report-form-grid">
+
+                        <div class="form-group">
+
+                            <label for="reportName">
+                                Report Name
+                            </label>
+
+                            <input
+                                id="reportName"
+                                name="reportName"
+                                type="text"
+                                placeholder="Example: Daily Farm Report"
+                                required
+                            >
+
+                        </div>
+
+                        <div class="form-group">
+
+                            <label for="taskTitle">
+                                Task Title
+                            </label>
+
+                            <input
+                                id="taskTitle"
+                                name="taskTitle"
+                                type="text"
+                                placeholder="Example: Submit Daily Farm Details"
+                                required
+                            >
+
+                        </div>
+
+                        <div class="form-group full-width">
+
+                            <label for="reportMessage">
+                                Message
+                            </label>
+
+                            <textarea
+                                id="reportMessage"
+                                name="reportMessage"
+                                rows="5"
+                                placeholder="Example: Please submit today's production, feed, mortality, and sales details."
+                                required
+                            ></textarea>
+
+                        </div>
+
+                        <div class="form-group full-width">
+
+                            <label for="reportDetails">
+                                Additional Details
+                            </label>
+
+                            <textarea
+                                id="reportDetails"
+                                name="reportDetails"
+                                rows="3"
+                                placeholder="Optional instructions, deadline, or additional information."
+                            ></textarea>
+
+                        </div>
+
+                    </div>
+
+                    <div class="inline-form-actions">
+
+                        <button
+                            id="cancelReportEditButton"
+                            class="secondary-button hidden"
+                            type="button"
+                        >
+                            Cancel Edit
+                        </button>
+
+                        <button
+                            id="saveReportButton"
+                            class="primary-button"
+                            type="submit"
+                        >
+                            Save Report
+                        </button>
+
+                    </div>
+
+                </section>
+
+            </form>
+
+            <section class="management-list-section">
+
+                <div class="management-list-heading">
+
+                    <div>
+                        <h3>
+                            Saved Reports
+                        </h3>
+
+                        <p>
+                            Select these reports when creating a reminder.
+                        </p>
+                    </div>
+
+                    <span id="reportManagementCount">
+                        0 reports
+                    </span>
+
+                </div>
+
+                <div
+                    id="reportManagementList"
+                    class="report-card-list"
+                >
+
+                    <div class="empty-state">
+
+                        <div class="empty-state-icon">
+                            ▤
+                        </div>
+
+                        <h4>
+                            No reports created
+                        </h4>
+
+                        <p>
+                            Create your first reusable reminder report above.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </div>
+
+
+    <!-- Toast Notification -->
+
+    <div
+        id="toastContainer"
+        class="toast-container"
+        aria-live="polite"
+    ></div>
+
+
+    <script src="/static/reminder.js?v=5"></script>
 
 </body>
+
 </html>
+

@@ -10,7 +10,7 @@ from waha import (
 from datetime import date, timedelta , datetime
 from tabulate import tabulate 
 from report_generator import generate_daily_pdf
-from scheduler import schedule_one_time_reminder
+from scheduler import schedule_one_time_reminder , schedule_reminder
 from database import (
     add_production,
     add_broken,
@@ -64,7 +64,11 @@ from database import (
     save_reminder ,
     save_contact,
     get_saved_contacts,
-    delete_saved_contact
+    delete_saved_contact , 
+    save_reminder_report,
+    get_reminder_reports , 
+    update_reminder_report,
+    delete_reminder_report
 )
 
 ALLOWED_GROUP_ID = "120363423099150354@g.us"
@@ -2512,7 +2516,6 @@ def process_request(data, chat_id=None,customer_whatsapp=None):
                 "file": pdf_path
             }
 
-
 def generate_daily_pdf_report(report_date):
 
     production_records = get_daily_summary(report_date)
@@ -2866,8 +2869,7 @@ def create_reminder(request):
 
     reminder = save_reminder(request)
 
-    if reminder["repeat_type"] == "once":
-        schedule_one_time_reminder(reminder)
+    schedule_reminder(reminder)
 
     return reminder
 
@@ -2900,3 +2902,43 @@ def fetch_saved_contacts():
 
 def remove_saved_contact(contact_id):
     return delete_saved_contact(contact_id)
+
+def create_report(request):
+
+    if not request.report_name.strip():
+        raise ValueError("Report name is required")
+
+    if not request.task_title.strip():
+        raise ValueError("Task title is required")
+
+    if not request.message.strip():
+        raise ValueError("Report message is required")
+
+    return save_reminder_report(request)
+
+def fetch_reports():
+
+    return get_reminder_reports()
+
+def edit_report(report_id, request):
+
+    if not request.report_name.strip():
+        raise ValueError("Report name is required")
+
+    if not request.task_title.strip():
+        raise ValueError("Task title is required")
+
+    if not request.message.strip():
+        raise ValueError("Report message is required")
+
+    return update_reminder_report(
+        report_id,
+        request
+    )
+
+def remove_report(report_id):
+
+    return delete_reminder_report(report_id)
+
+
+

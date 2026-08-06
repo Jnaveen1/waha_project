@@ -149,6 +149,12 @@ class Reminder(Base):
         index=True
     )
 
+    report_id = Column(
+        Integer,
+        ForeignKey("reminder_reports.id"),
+        nullable=False
+    )
+
     message = Column(
         String(1000),
         nullable=False
@@ -182,8 +188,8 @@ class Reminder(Base):
 
     job_id = Column(
         String(100),
-        nullable=True,
-        unique=True
+        unique=True,
+        nullable=True
     )
 
     created_at = Column(
@@ -192,12 +198,18 @@ class Reminder(Base):
         nullable=False
     )
 
+    report = relationship(
+        "ReminderReport",
+        back_populates="reminders"
+    )
+
     recipients = relationship(
         "ReminderRecipient",
         back_populates="reminder",
         cascade="all, delete-orphan"
     )
 
+    
 class ReminderRecipient(Base):
     __tablename__ = "reminder_recipients"
 
@@ -288,7 +300,7 @@ class ReminderReport(Base):
     )
 
     message = Column(
-        String(2000),
+        Text,
         nullable=False
     )
 
@@ -309,4 +321,7 @@ class ReminderReport(Base):
         nullable=False
     )
 
-
+    reminders = relationship(
+        "Reminder",
+        back_populates="report"
+    )
