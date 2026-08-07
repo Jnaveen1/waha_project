@@ -4,7 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.cron import CronTrigger
 
-from database import get_reminder_by_id
+from database import get_reminder_by_id , mark_reminder_completed
 from reminder_service import send_reminder_to_recipient
 
 
@@ -53,6 +53,23 @@ def start_scheduler():
 
         print("Reminder scheduler started.")
 
+        from database import (
+            mark_past_one_time_reminders_as_missed
+        )
+
+        print(
+            "Checking for missed reminders..."
+        )
+
+        missed_count = (
+            mark_past_one_time_reminders_as_missed()
+        )
+
+        print(
+            f"Missed reminders detected: "
+            f"{missed_count}"
+        )
+        
 def stop_scheduler():
 
     if scheduler.running:
@@ -89,8 +106,7 @@ def send_reminder(reminder_id):
         reminder
     )
 
-    print("Formatted reminder message:")
-    print(formatted_message)
+    all_sent_successfully = True
 
     for recipient in recipients:
 
@@ -108,16 +124,37 @@ def send_reminder(reminder_id):
         )
 
         if result["success"]:
+
             print(
                 f"Reminder sent successfully to "
                 f"{recipient_name}."
             )
+
         else:
+
+            all_sent_successfully = False
+
             print(
                 f"Failed to send reminder to "
                 f"{recipient_name}: {result}"
             )
-       
+
+    # Only one-time reminders become inactive
+    # after successful delivery to all recipients.
+    if (
+        reminder["repeat_type"] == "once"
+        and all_sent_successfully
+    ):
+
+        mark_reminder_completed(
+            reminder_id
+        )
+
+        print(
+            f"One-time reminder {reminder_id} "
+            "completed and marked inactive."
+        )
+ 
 def schedule_one_time_reminder(reminder):
 
     run_datetime = datetime.combine(

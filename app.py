@@ -13,9 +13,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from service import fetch_all_reminders , remove_reminder , change_reminder_status , create_saved_contact, fetch_saved_contacts, remove_saved_contact , create_reminder , create_report , fetch_reports 
 from contextlib import asynccontextmanager
-from scheduler import start_scheduler, stop_scheduler\
-
-from datetime import date
+from scheduler import start_scheduler, stop_scheduler
+from database import mark_past_one_time_reminders_as_missed
+from datetime import date, datetime 
 from reminder_service import get_whatsapp_recipients
 
 @asynccontextmanager
@@ -545,8 +545,20 @@ def delete_report_api(report_id: int):
             "message": "Unable to delete report"
         }
 
+@app.on_event("startup")
+def startup_event():
 
+    print("APP STARTUP EVENT RUNNING")
 
+    start_scheduler()
 
+    print("Calling missed reminder check...")
 
+    missed_count = (
+        mark_past_one_time_reminders_as_missed()
+    )
 
+    print(
+        "Startup missed reminder count:",
+        missed_count
+    )

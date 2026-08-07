@@ -21,6 +21,14 @@ WAHA_SESSION = os.getenv(
     "default"
 )
 
+FASTAPI_HEALTH_URL = os.getenv(
+    "FASTAPI_HEALTH_URL",
+    "http://127.0.0.1:8000/"
+)
+
+last_fastapi_status = None
+last_waha_service_status = None
+
 WAHA_API_KEY = os.getenv(
     "WAHA_API_KEY"
 )
@@ -28,6 +36,19 @@ WAHA_API_KEY = os.getenv(
 CHECK_INTERVAL_SECONDS = 10
 last_status = None
 last_qr_hash = None
+
+def check_fastapi():
+
+    try:
+        response = requests.get(
+            FASTAPI_HEALTH_URL,
+            timeout=10
+        )
+
+        return response.status_code == 200
+
+    except requests.RequestException:
+        return False
 
 def get_session_status():
 
@@ -111,35 +132,139 @@ def monitor_once():
 
     global last_status
     global last_qr_hash
-
-    status = get_session_status()
+    global last_fastapi_status
+    global last_waha_service_status
 
     current_time = datetime.now().strftime(
         "%d-%m-%Y %I:%M:%S %p"
     )
 
+
+    # --------------------------------
+    # 1. Check FastAPI
+    # --------------------------------
+
+    fastapi_working = check_fastapi()
+
     print(
-        f"{current_time} - WAHA status: {status}"
+        f"{current_time} - FastAPI: "
+        f"{'WORKING' if fastapi_working else 'DOWN'}"
     )
 
+    if fastapi_working != last_fastapi_status:
+
+        if not fastapi_working:
+
+            send_alert_email(
+                subject="Reminder Application Down",
+                body=(
+                    "The FastAPI reminder application "
+                    "is not responding.\n\n"
+                    f"Detected at: {current_time}\n\n"
+                    "Scheduled reminder APIs and the "
+                    "frontend may not be available."
+                )
+            )
+
+        elif last_fastapi_status is False:
+
+            send_alert_email(
+                subject="Reminder Application Restored",
+                body=(
+                    "The FastAPI reminder application "
+                    "is working again.\n\n"
+                    f"Restored at: {current_time}"
+                )
+            )
+
+        last_fastapi_status = fastapi_working
+
+
+    # --------------------------------
+    # 2. Check WAHA service
+    # --------------------------------
+
+    waha_service_working = check_waha_service()
+
+    print(
+        f"{current_time} - WAHA Service: "
+        f"{'WORKING' if waha_service_working else 'DOWN'}"
+    )
+
+    if waha_service_working != last_waha_service_status:
+
+        if not waha_service_working:
+
+            send_alert_email(
+                subject="WAHA Service Down",
+                body=(
+                    "The watchdog cannot connect "
+                    "to the WAHA service.\n\n"
+                    f"WAHA URL: {WAHA_BASE_URL}\n"
+                    f"Detected at: {current_time}\n\n"
+                    "Please check Docker Desktop "
+                    "and the WAHA container."
+                )
+            )
+
+        elif last_waha_service_status is False:
+
+            send_alert_email(
+                subject="WAHA Service Restored",
+                body=(
+                    "The WAHA service is reachable "
+                    "again.\n\n"
+                    f"Restored at: {current_time}"
+                )
+            )
+
+        last_waha_service_status = (
+            waha_service_working
+        )
+
+
+    # If WAHA itself is down,
+    # don't try to check the session.
+    if not waha_service_working:
+        return
+
+
+    # --------------------------------
+    # 3. Check WhatsApp session
+    # --------------------------------
+
+    status = get_session_status()
+
+    print(
+        f"{current_time} - WhatsApp Session: "
+        f"{status}"
+    )
+
+
+    # QR required
     if status == "SCAN_QR_CODE":
 
         qr_path, qr_hash = fetch_qr_code()
 
-        # Send only when WAHA generates a different QR.
-        if qr_hash and qr_hash != last_qr_hash:
+        if (
+            qr_hash
+            and qr_hash != last_qr_hash
+        ):
 
             send_alert_email(
                 subject="WhatsApp QR Scan Required",
                 body=(
-                    "A fresh WhatsApp QR code is attached.\n\n"
+                    "A fresh WhatsApp QR code "
+                    "is attached.\n\n"
                     f"Session: {WAHA_SESSION}\n"
                     f"Generated at: {current_time}\n\n"
-                    "Open this email immediately on another "
-                    "screen and scan it using:\n"
+                    "Open this email immediately "
+                    "on another screen and scan "
+                    "it using:\n\n"
                     "WhatsApp → Linked Devices → "
                     "Link a Device.\n\n"
-                    "Important: This QR expires quickly."
+                    "Important: This QR expires "
+                    "quickly."
                 ),
                 attachment_path=qr_path
             )
@@ -147,52 +272,65 @@ def monitor_once():
             last_qr_hash = qr_hash
 
         last_status = status
+
         return
 
+
+    # No state change
     if status == last_status:
         return
 
+
     print(
-        f"Status changed: "
+        f"WhatsApp status changed: "
         f"{last_status} -> {status}"
     )
 
+
     if status == "WORKING":
 
-        send_alert_email(
-            subject="WAHA Connection Restored",
-            body=(
-                "The WhatsApp reminder system "
-                "is working normally again.\n\n"
-                f"Session: {WAHA_SESSION}\n"
-                f"Restored at: {current_time}"
+        if last_status is not None:
+
+            send_alert_email(
+                subject="WhatsApp Connection Restored",
+                body=(
+                    "The WhatsApp session is "
+                    "working normally again.\n\n"
+                    f"Session: {WAHA_SESSION}\n"
+                    f"Restored at: {current_time}"
+                )
             )
-        )
 
         last_qr_hash = None
+
 
     elif status is None:
 
         send_alert_email(
-            subject="WAHA Service Unreachable",
+            subject="WhatsApp Session Unavailable",
             body=(
-                "The watchdog cannot connect to WAHA.\n\n"
-                f"Detected at: {current_time}\n"
-                "Check Docker Desktop and the WAHA container."
+                "WAHA is running, but the "
+                "WhatsApp session status could "
+                "not be determined.\n\n"
+                f"Session: {WAHA_SESSION}\n"
+                f"Detected at: {current_time}"
             )
         )
+
 
     else:
 
         send_alert_email(
-            subject="WAHA Session Problem",
+            subject="WhatsApp Session Problem",
             body=(
-                "The WhatsApp session is not working.\n\n"
+                "The WhatsApp session is not "
+                "working normally.\n\n"
                 f"Session: {WAHA_SESSION}\n"
                 f"Status: {status}\n"
                 f"Detected at: {current_time}"
             )
         )
+
 
     last_status = status
 
@@ -208,6 +346,24 @@ def run_monitor():
             CHECK_INTERVAL_SECONDS
         )
 
+def check_waha_service():
+
+    headers = {
+        "X-Api-Key": WAHA_API_KEY
+    }
+
+    try:
+        response = requests.get(
+            f"{WAHA_BASE_URL}/health",
+            headers=headers,
+            timeout=10
+        )
+
+        return response.status_code == 200
+
+    except requests.RequestException:
+        return False
 
 if __name__ == "__main__":
     run_monitor()
+

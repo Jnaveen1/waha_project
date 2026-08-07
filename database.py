@@ -2361,7 +2361,8 @@ def save_reminder(request):
             schedule_date=schedule_date,
             schedule_time=schedule_time,
             week_day=request.week_day,
-            is_active=True
+            is_active=True, 
+            status="active"
         )
 
         db.add(reminder)
@@ -2467,7 +2468,8 @@ def get_all_reminders():
                 "week_day": reminder.week_day,
                 "is_active": reminder.is_active,
                 "job_id": reminder.job_id,
-                "recipients": recipients
+                "recipients": recipients , 
+                "status": reminder.status,
             })
 
         return result
@@ -2505,27 +2507,93 @@ def delete_reminder(reminder_id):
 
         db.close()
 
-def update_reminder_status(reminder_id, is_active):
+def update_reminder_status(
+    reminder_id,
+    is_active
+):
 
     db = SessionLocal()
 
     try:
         reminder = (
             db.query(Reminder)
-            .filter(Reminder.id == reminder_id)
+            .filter(
+                Reminder.id == reminder_id
+            )
             .first()
         )
 
         if not reminder:
-            return None
+            return False
+
+        # Completed / missed reminders
+        # can never be enabled again
+        if (
+            is_active
+            and reminder.status
+            in ["completed", "missed"]
+        ):
+            raise ValueError(
+                f"{reminder.status.capitalize()} "
+                "reminder cannot be enabled again"
+            )
+
+        # -----------------------------------
+        # One-time reminder enable validation
+        # -----------------------------------
+
+        if (
+            is_active
+            and reminder.repeat_type == "once"
+        ):
+
+            if not reminder.schedule_date:
+                raise ValueError(
+                    "One-time reminder has no schedule date"
+                )
+
+            scheduled_datetime = datetime.combine(
+                reminder.schedule_date,
+                reminder.schedule_time
+            )
+
+            current_datetime = datetime.now()
+
+            # Scheduled time already passed
+            if scheduled_datetime <= current_datetime:
+
+                reminder.is_active = False
+                reminder.status = "missed"
+
+                db.commit()
+
+                raise ValueError(
+                    "This reminder's scheduled time "
+                    "has already passed. "
+                    "It has been marked as Missed."
+                )
+
+        # -----------------------------------
+        # Normal enable / disable
+        # -----------------------------------
 
         reminder.is_active = is_active
 
+        if is_active:
+            reminder.status = "active"
+
+        else:
+            reminder.status = "inactive"
+
         db.commit()
 
-        db.refresh(reminder)
+        return True
 
-        return reminder.is_active
+    except ValueError:
+        # Important:
+        # don't rollback the missed update
+        # that we already committed above.
+        raise
 
     except Exception:
         db.rollback()
@@ -2578,6 +2646,8 @@ def get_reminder_by_id(reminder_id):
                 if reminder.report
                 else None
             ),
+
+            "repeat_type": reminder.repeat_type,
 
             "is_active": reminder.is_active,
 
@@ -2825,49 +2895,6 @@ def get_reminder_reports():
     finally:
         db.close()
 
-def update_reminder_report(report_id, request):
-
-    db = SessionLocal()
-
-    try:
-        report = (
-            db.query(ReminderReport)
-            .filter(ReminderReport.id == report_id)
-            .first()
-        )
-
-        if not report:
-            return None
-
-        report.report_name = request.report_name.strip()
-        report.task_title = request.task_title.strip()
-        report.message = request.message.strip()
-
-        report.details = (
-            request.details.strip()
-            if request.details
-            else None
-        )
-
-        db.commit()
-        db.refresh(report)
-
-        return {
-            "id": report.id,
-            "report_name": report.report_name,
-            "task_title": report.task_title,
-            "message": report.message,
-            "details": report.details,
-            "is_active": report.is_active
-        }
-
-    except Exception:
-        db.rollback()
-        raise
-
-    finally:
-        db.close()
-
 def delete_reminder_report(report_id):
 
     db = SessionLocal()
@@ -2985,7 +3012,144 @@ def delete_reminder_report(report_id):
     finally:
         db.close()
 
+def mark_reminder_completed(reminder_id):
 
+    db = SessionLocal()
 
+    try:
+        reminder = (
+            db.query(Reminder)
+            .filter(Reminder.id == reminder_id)
+            .first()
+        )
 
+        if not reminder:
+            return False
 
+        reminder.is_active = False
+        reminder.status = "completed"
+
+        db.commit()
+
+        return True
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+def mark_reminder_missed(reminder_id):
+
+    db = SessionLocal()
+
+    try:
+        reminder = (
+            db.query(Reminder)
+            .filter(Reminder.id == reminder_id)
+            .first()
+        )
+
+        if not reminder:
+            return False
+
+        reminder.is_active = False
+        reminder.status = "missed"
+
+        db.commit()
+
+        return True
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+def mark_past_one_time_reminders_as_missed():
+
+    db = SessionLocal()
+
+    try:
+        now = datetime.now()
+
+        print("Checking missed reminders...")
+        print("Current time:", now)
+
+        reminders = (
+            db.query(Reminder)
+            .filter(
+                Reminder.repeat_type == "once",
+                Reminder.status == "active",
+                Reminder.is_active == True
+            )
+            .all()
+        )
+
+        print(
+            "Active one-time reminders found:",
+            len(reminders)
+        )
+
+        missed_count = 0
+
+        for reminder in reminders:
+
+            print(
+                "Checking reminder:",
+                reminder.id,
+                reminder.schedule_date,
+                reminder.schedule_time,
+                reminder.status,
+                reminder.is_active
+            )
+
+            if not reminder.schedule_date:
+                continue
+
+            scheduled_datetime = datetime.combine(
+                reminder.schedule_date,
+                reminder.schedule_time
+            )
+
+            print(
+                "Scheduled datetime:",
+                scheduled_datetime
+            )
+
+            if scheduled_datetime < now:
+
+                print(
+                    "Marking reminder as missed:",
+                    reminder.id
+                )
+
+                reminder.status = "missed"
+                reminder.is_active = False
+
+                missed_count += 1
+
+        db.commit()
+
+        print(
+            "Missed reminders updated:",
+            missed_count
+        )
+
+        return missed_count
+
+    except Exception as error:
+
+        db.rollback()
+
+        print(
+            "Missed reminder check error:",
+            error
+        )
+
+        raise
+
+    finally:
+        db.close()

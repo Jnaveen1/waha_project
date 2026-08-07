@@ -13,7 +13,7 @@
 
     <link
         rel="stylesheet"
-        href="/static/reminder.css?v=4"
+        href="/static/reminder.css?v=5"
     >
 </head>
 
@@ -66,7 +66,7 @@
 
         <!-- Summary Cards -->
 
-        <section class="summary-grid">
+        <!-- <section class="summary-grid">
 
             <article class="summary-card">
 
@@ -100,7 +100,7 @@
 
             </article>
 
-        </section>
+        </section> -->
 
         <!-- Scheduled Reminders -->
 
@@ -123,7 +123,16 @@
                 </span>
 
             </div>
+            <div class="search-box">
 
+                <input
+                    id="reminderSearchInput"
+                    type="search"
+                    placeholder="Search reminders by report, recipient or schedule..."
+                    autocomplete="off"
+                >
+
+            </div>
             <div class="table-container">
 
                 <table class="reminder-table">
@@ -775,6 +784,21 @@
 
                 </div>
 
+
+                <!-- Search Saved Reports -->
+
+                <div class="search-box">
+
+                    <input
+                        id="reportSearchInput"
+                        type="search"
+                        placeholder="Search reports by name, task or message..."
+                        autocomplete="off"
+                    >
+
+                </div>
+
+
                 <div
                     id="reportManagementList"
                     class="report-card-list"
@@ -814,7 +838,7 @@
     ></div>
 
 
-    <script src="/static/reminder.js?v=5"></script>
+    <script src="/static/reminder.js?v=6"></script>
 
 </body>
 

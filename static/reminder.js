@@ -1,3 +1,9 @@
+const reportSearchInput =
+    document.getElementById("reportSearchInput");
+
+const reminderSearchInput =
+    document.getElementById("reminderSearchInput");
+
 const contactSearchInput = document.getElementById(
     "contactSearchInput"
 );
@@ -474,6 +480,30 @@ async function handleReportSubmit(event) {
     }
 }
 
+function loadReportDropdown() {
+
+    reportSelect.innerHTML = `
+        <option value="">
+            Select a report
+        </option>
+    `;
+
+    reports.forEach((report) => {
+
+        const option =
+            document.createElement("option");
+
+        option.value = report.id;
+
+        option.textContent =
+            report.report_name;
+
+        reportSelect.appendChild(
+            option
+        );
+    });
+}
+
 async function loadReports() {
     try {
         const response = await fetch("/api/reports");
@@ -488,6 +518,8 @@ async function loadReports() {
 
         reports = result.reports || [];
 
+        loadReportDropdown();
+
         renderReports();
 
     } catch (error) {
@@ -501,79 +533,87 @@ async function loadReports() {
     }
 }
 
-function renderReports() {
+function renderReports(searchText = "") {
+
     reportManagementList.innerHTML = "";
-    reportSelect.innerHTML = `
-        <option value="">
-            Select a report
-        </option>
-    `;
+
+    const search =
+        searchText.trim().toLowerCase();
+
+    const filteredReports = reports.filter(
+        (report) => {
+
+            const reportName =
+                (report.report_name || "")
+                    .toLowerCase();
+
+            const taskTitle =
+                (report.task_title || "")
+                    .toLowerCase();
+
+            const message =
+                (report.message || "")
+                    .toLowerCase();
+
+            return (
+                reportName.includes(search) ||
+                taskTitle.includes(search) ||
+                message.includes(search)
+            );
+        }
+    );
 
     reportManagementCount.textContent =
-        `${reports.length} report${reports.length === 1 ? "" : "s"}`;
+        `${filteredReports.length} report${
+            filteredReports.length === 1
+                ? ""
+                : "s"
+        }`;
 
-    summaryReportCount.textContent =
-        reports.length;
+    if (filteredReports.length === 0) {
 
-    if (reports.length === 0) {
         reportManagementList.innerHTML = `
             <div class="empty-state">
+
                 <div class="empty-state-icon">
                     ▤
                 </div>
 
                 <h4>
-                    No reports created
+                    No matching reports
                 </h4>
 
                 <p>
-                    Create your first reusable reminder report above.
+                    Try another report name,
+                    task title or message.
                 </p>
+
             </div>
         `;
-        
-        updateReportPreview();
 
         return;
     }
 
-    reports.forEach((report) => {
-        const option = document.createElement("option");
+    filteredReports.forEach((report) => {
 
-        option.value = report.id;
-        option.textContent = report.report_name;
-
-        reportSelect.appendChild(option);
-
-        const card = document.createElement("article");
+        const card =
+            document.createElement("article");
 
         card.className = "report-card";
 
         card.innerHTML = `
             <div class="report-card-header">
+
                 <div>
-                    <h4>${report.report_name}</h4>
+                    <h4>
+                        ${report.report_name}
+                    </h4>
 
                     <span class="task-title">
                         ${report.task_title}
                     </span>
                 </div>
-            </div>
 
-            <p class="report-message">
-                ${report.message}
-            </p>
-        `;
-        
-        card.innerHTML = `
-            <div class="report-card-header">
-                <div>
-                    <h4>${report.report_name}</h4>
-
-                    <span class="task-title">
-                        ${report.task_title}
-                    </span>
-                </div>
             </div>
 
             <p class="report-message">
@@ -585,7 +625,6 @@ function renderReports() {
                 <button
                     type="button"
                     class="edit-button"
-                    data-report-id="${report.id}"
                 >
                     Edit
                 </button>
@@ -593,7 +632,6 @@ function renderReports() {
                 <button
                     type="button"
                     class="delete-button"
-                    data-report-id="${report.id}"
                 >
                     Delete
                 </button>
@@ -603,17 +641,29 @@ function renderReports() {
 
         card
             .querySelector(".edit-button")
-            .addEventListener("click", () => {
-                startReportEdit(report.id);
-            });
+            .addEventListener(
+                "click",
+                () => {
+                    startReportEdit(
+                        report.id
+                    );
+                }
+            );
 
         card
             .querySelector(".delete-button")
-            .addEventListener("click", () => {
-                deleteReport(report.id);
-            });
+            .addEventListener(
+                "click",
+                () => {
+                    deleteReport(
+                        report.id
+                    );
+                }
+            );
 
-        reportManagementList.appendChild(card);
+        reportManagementList.appendChild(
+            card
+        );
     });
 }
 
@@ -825,119 +875,322 @@ function formatSchedule(reminder) {
     return `${reminder.weekDay} at ${reminder.scheduleTime}`;
 }
 
-function createStatusBadge(isActive) {
-    const badge = document.createElement("span");
+function createStatusBadge(status) {
 
-    badge.textContent = isActive ? "Active" : "Inactive";
+    const badge =
+        document.createElement("span");
 
     badge.style.padding = "5px 10px";
     badge.style.borderRadius = "12px";
     badge.style.fontSize = "13px";
+    badge.style.fontWeight = "700";
 
-    if (isActive) {
-        badge.style.background = "#d1e7dd";
-        badge.style.color = "#0f5132";
-    } else {
-        badge.style.background = "#f8d7da";
-        badge.style.color = "#842029";
+    if (status === "active") {
+        badge.textContent = "Active";
+
+        badge.style.background =
+            "#dcfce7";
+
+        badge.style.color =
+            "#166534";
+    }
+
+    else if (status === "inactive") {
+        badge.textContent = "Inactive";
+
+        badge.style.background =
+            "#fee2e2";
+
+        badge.style.color =
+            "#991b1b";
+    }
+
+    else if (status === "completed") {
+        badge.textContent = "Completed";
+
+        badge.style.background =
+            "#e0f2fe";
+
+        badge.style.color =
+            "#0369a1";
+    }
+
+    else if (status === "missed") {
+        badge.textContent = "Missed";
+
+        badge.style.background =
+            "#fef3c7";
+
+        badge.style.color =
+            "#92400e";
+    }
+
+    else {
+        badge.textContent = status || "Unknown";
+
+        badge.style.background =
+            "#f1f5f9";
+
+        badge.style.color =
+            "#475569";
     }
 
     return badge;
 }
 
-function renderReminders() {
+function renderReminders(searchText = "") {
+
+    const search =
+        searchText.trim().toLowerCase();
+
+    const filteredReminders = reminders.filter(
+        (reminder) => {
+
+            const recipients =
+                (reminder.recipients || [])
+                    .map(
+                        (recipient) =>
+                            recipient.recipient_name
+                    )
+                    .join(" ")
+                    .toLowerCase();
+
+            const reportName =
+                (
+                    reminder.reportName ||
+                    reminder.message ||
+                    ""
+                )
+                    .toLowerCase();
+
+            const schedule =
+                formatSchedule(reminder)
+                    .toLowerCase();
+
+            return (
+                reportName.includes(search) ||
+                recipients.includes(search) ||
+                schedule.includes(search)
+            );
+        }
+    );
+
+
     reminderTableBody.innerHTML = "";
 
+
     reminderCount.textContent =
-        `${reminders.length} reminder${reminders.length === 1 ? "" : "s"}`;
+        `${filteredReminders.length} reminder${
+            filteredReminders.length === 1
+                ? ""
+                : "s"
+        }`;
 
-    if (summaryReminderCount) {
-        summaryReminderCount.textContent =
-            reminders.length;
-    }
-    
-    if (reminders.length === 0) {
-        const row = document.createElement("tr");
 
-        row.innerHTML = `
-            <td colspan="5" class="empty-message">
-                No reminders created yet.
-            </td>
+    if (filteredReminders.length === 0) {
+
+        reminderTableBody.innerHTML = `
+            <tr>
+                <td
+                    colspan="5"
+                    class="empty-message"
+                >
+                    No matching reminders found.
+                </td>
+            </tr>
         `;
-
-        reminderTableBody.appendChild(row);
 
         return;
     }
 
-    reminders.forEach((reminder) => {
-        const row = document.createElement("tr");
 
-        const messageCell = document.createElement("td");
+    filteredReminders.forEach((reminder) => {
 
-        const reportName = document.createElement("strong");
-        reportName.textContent = reminder.reportName;
+        const row =
+            document.createElement("tr");
 
-        messageCell.appendChild(reportName);
 
-        if (reminder.taskTitle) {
-            const taskTitle = document.createElement("small");
+        // --------------------------------
+        // Report / Message Column
+        // --------------------------------
 
-            taskTitle.className = "table-subtext";
-            taskTitle.textContent = reminder.taskTitle;
+        const messageCell =
+            document.createElement("td");
 
-            messageCell.appendChild(taskTitle);
-        }
+        const reportName =
+            document.createElement("strong");
 
-        const recipientCell = document.createElement("td");
-        recipientCell.textContent = reminder.recipients
-            .map((recipient) => recipient.recipient_name)
-            .join(", ");
+        reportName.textContent =
+            reminder.reportName ||
+            "Unnamed Report";
 
-        const scheduleCell = document.createElement("td");
-        scheduleCell.textContent = formatSchedule(reminder);
-
-        const statusCell = document.createElement("td");
-        statusCell.appendChild(
-            createStatusBadge(reminder.isActive)
+        messageCell.appendChild(
+            reportName
         );
 
-        const actionsCell = document.createElement("td");
 
-        const toggleButton = document.createElement("button");
+        if (reminder.taskTitle) {
 
-        toggleButton.type = "button";
-        toggleButton.className = "text-button";
-        toggleButton.textContent = reminder.isActive
-            ? "Disable"
-            : "Enable";
+            const taskTitle =
+                document.createElement("small");
 
-        toggleButton.addEventListener("click", () => {
-            toggleReminderStatus(reminder.id);
-        });
+            taskTitle.className =
+                "table-subtext";
 
-        const deleteButton = document.createElement("button");
+            taskTitle.textContent =
+                reminder.taskTitle;
+
+            messageCell.appendChild(
+                taskTitle
+            );
+        }
+
+
+        // --------------------------------
+        // Recipients Column
+        // --------------------------------
+
+        const recipientCell =
+            document.createElement("td");
+
+        recipientCell.textContent =
+            (reminder.recipients || [])
+                .map(
+                    (recipient) =>
+                        recipient.recipient_name
+                )
+                .join(", ");
+
+
+        // --------------------------------
+        // Schedule Column
+        // --------------------------------
+
+        const scheduleCell =
+            document.createElement("td");
+
+        scheduleCell.textContent =
+            formatSchedule(reminder);
+
+
+        // --------------------------------
+        // Status Column
+        // --------------------------------
+
+        const statusCell =
+            document.createElement("td");
+
+        statusCell.appendChild(
+            createStatusBadge(
+                reminder.status
+            )
+        );
+
+
+        // --------------------------------
+        // Actions Column
+        // --------------------------------
+
+        const actionsCell =
+            document.createElement("td");
+
+
+        // Enable / Disable only if reminder is not completed
+        
+        if (
+            reminder.status === "active" ||
+            reminder.status === "inactive"
+        ) {
+
+            const toggleButton =
+                document.createElement("button");
+
+            toggleButton.type = "button";
+
+            toggleButton.className =
+                "text-button";
+
+            toggleButton.textContent =
+                reminder.status === "active"
+                    ? "Disable"
+                    : "Enable";
+
+            toggleButton.addEventListener(
+                "click",
+                () => {
+                    toggleReminderStatus(
+                        reminder.id
+                    );
+                }
+            );
+
+            actionsCell.appendChild(
+                toggleButton
+            );
+        }
+
+        // Delete button always available
+
+        const deleteButton =
+            document.createElement("button");
 
         deleteButton.type = "button";
-        deleteButton.className = "text-button";
-        deleteButton.textContent = "Delete";
-        deleteButton.style.marginLeft = "12px";
-        deleteButton.style.color = "#dc3545";
 
-        deleteButton.addEventListener("click", () => {
-            deleteReminder(reminder.id);
-        });
+        deleteButton.className =
+            "text-button";
 
-        actionsCell.appendChild(toggleButton);
-        actionsCell.appendChild(deleteButton);
+        deleteButton.textContent =
+            "Delete";
 
-        row.appendChild(messageCell);
-        row.appendChild(recipientCell);
-        row.appendChild(scheduleCell);
-        row.appendChild(statusCell);
-        row.appendChild(actionsCell);
+        deleteButton.style.marginLeft =
+            "12px";
 
-        reminderTableBody.appendChild(row);
+        deleteButton.style.color =
+            "#dc3545";
+
+        deleteButton.addEventListener(
+            "click",
+            () => {
+                deleteReminder(
+                    reminder.id
+                );
+            }
+        );
+
+        actionsCell.appendChild(
+            deleteButton
+        );
+
+
+        // --------------------------------
+        // Add columns to row
+        // --------------------------------
+
+        row.appendChild(
+            messageCell
+        );
+
+        row.appendChild(
+            recipientCell
+        );
+
+        row.appendChild(
+            scheduleCell
+        );
+
+        row.appendChild(
+            statusCell
+        );
+
+        row.appendChild(
+            actionsCell
+        );
+
+
+        reminderTableBody.appendChild(
+            row
+        );
+
     });
 }
 
@@ -1253,7 +1506,9 @@ async function loadReminders() {
                 scheduleDate: reminder.schedule_date,
                 scheduleTime: reminder.schedule_time,
                 weekDay: reminder.week_day,
-                isActive: reminder.is_active
+                isActive: reminder.is_active, 
+                completed: reminder.completed || false,
+                status: reminder.status || "active",
             };
         });
 
@@ -1446,6 +1701,48 @@ if (reminderForm) {
     reminderForm.addEventListener(
         "submit",
         handleReminderSubmit
+    );
+}
+
+if (reportSearchInput) {
+
+    reportSearchInput.addEventListener(
+        "input",
+        () => {
+
+            renderReports(
+                reportSearchInput.value
+            );
+
+        }
+    );
+}
+
+if (reminderSearchInput) {
+
+    console.log(
+        "Reminder search input connected"
+    );
+
+    reminderSearchInput.addEventListener(
+        "input",
+        function () {
+
+            console.log(
+                "Searching:",
+                reminderSearchInput.value
+            );
+
+            renderReminders(
+                reminderSearchInput.value
+            );
+        }
+    );
+
+} else {
+
+    console.error(
+        "reminderSearchInput not found"
     );
 }
 

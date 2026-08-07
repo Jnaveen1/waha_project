@@ -209,7 +209,12 @@ class Reminder(Base):
         cascade="all, delete-orphan"
     )
 
-    
+    status = Column(
+        String(20),
+        default="active",
+        nullable=False
+    )
+   
 class ReminderRecipient(Base):
     __tablename__ = "reminder_recipients"
 
