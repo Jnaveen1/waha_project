@@ -6,7 +6,7 @@ from difflib import get_close_matches
 
 from base import Base
 from models import EggRecord , MedicineStock, FeedStock , EggPriceSetting , FarmFinancialSetting , FeedPriceSetting , CustomerOrder , Reminder, ReminderRecipient , SavedContact, ReminderReport 
-
+from datetime import datetime, timedelta
 import re 
 import requests 
 import os
@@ -3153,3 +3153,137 @@ def mark_past_one_time_reminders_as_missed():
 
     finally:
         db.close()
+
+
+def get_due_reminders():
+
+    db = SessionLocal()
+
+    try:
+        now = datetime.now()
+        # Allow reminders from the last 2 minutes
+        window_start = now - timedelta(minutes=2)
+        print("NOW:", now)
+        print("WINDOW START:", window_start)
+
+        reminders = (
+            db.query(Reminder)
+            .filter(
+                Reminder.is_active == True,
+                Reminder.status == "active"
+            )
+            .all()
+        )
+
+        due_reminders = []
+
+        for reminder in reminders:
+
+            is_due = False
+
+
+            # -----------------------------
+            # ONE TIME
+            # -----------------------------
+            print(
+                "REMINDER:",
+                reminder.id,
+                reminder.repeat_type,
+                reminder.schedule_date,
+                reminder.schedule_time,
+                reminder.status,
+                reminder.is_active
+            )
+
+            if reminder.repeat_type == "once":
+
+                if not reminder.schedule_date:
+                    continue
+
+                scheduled_datetime = datetime.combine(
+                    reminder.schedule_date,
+                    reminder.schedule_time
+                )
+
+                print(
+                    "SCHEDULED DATETIME:",
+                    scheduled_datetime
+                )
+
+                print(
+                    "IS DUE:",
+                    window_start
+                    <= scheduled_datetime
+                    <= now
+                )
+
+                if (
+                    window_start
+                    <= scheduled_datetime
+                    <= now
+                ):
+                    is_due = True
+            
+            if not is_due:
+                continue
+
+
+            recipients = [
+                {
+                    "recipient_name":
+                        recipient.recipient_name,
+
+                    "chat_id":
+                        recipient.chat_id,
+
+                    "recipient_type":
+                        recipient.recipient_type
+                }
+
+                for recipient
+                in reminder.recipients
+            ]
+
+
+            due_reminders.append({
+                "id": reminder.id,
+
+                "report_name": (
+                    reminder.report.report_name
+                    if reminder.report
+                    else "Reminder"
+                ),
+
+                "task_title": (
+                    reminder.report.task_title
+                    if reminder.report
+                    else ""
+                ),
+
+                "message":
+                    reminder.message,
+
+                "details": (
+                    reminder.report.details
+                    if reminder.report
+                    else None
+                ),
+
+                "repeat_type":
+                    reminder.repeat_type,
+
+                "recipients":
+                    recipients
+            })
+
+
+        return due_reminders
+
+    finally:
+        db.close()
+
+
+
+
+
+

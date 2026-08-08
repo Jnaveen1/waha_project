@@ -1,17 +1,13 @@
+import os
 import requests
 import time
+from dotenv import load_dotenv
+load_dotenv()
 
-
-WAHA_URL = "http://localhost:3000/api/sendText"
-WAHA_SESSION = "default"
-WAHA_API_KEY = "naveen123"
-
-
-GROUPS = [
-    "120363423099150354@g.us",
-    "120363345095589925@g.us",
-    "120363422507401551@g.us",
-]
+WAHA_BASE_URL = os.getenv("WAHA_BASE_URL", "http://localhost:3000")
+WAHA_SESSION = os.getenv("WAHA_SESSION", "default")
+WAHA_API_KEY = os.getenv("WAHA_API_KEY", "naveen123")
+WAHA_URL = f"{WAHA_BASE_URL}/api/sendText"
 
 
 def send_reminder_to_recipient(
@@ -70,83 +66,106 @@ def send_reminder_to_recipient(
         "success": False,
         "error": str(last_error),
     }
-    
+ 
 def get_whatsapp_recipients():
-
     headers = {
-        "X-Api-Key": WAHA_API_KEY,
+        "X-Api-Key": WAHA_API_KEY
     }
-
-    response = requests.get(
-        f"http://localhost:3000/api/{WAHA_SESSION}/chats",
-        headers=headers,
-        params={
-            "limit": 1000,
-            "offset": 0,
-        },
-        timeout=60,
-    )
-
-    response.raise_for_status()
-
-    chats = response.json()
-
-    contacts = []
-    groups = []
-
-    for chat in chats:
-
-        chat_id = (
-            chat.get("id")
-            or chat.get("chatId")
-        )
-
-        if isinstance(chat_id, dict):
-            chat_id = (
-                chat_id.get("_serialized")
-                or chat_id.get("serialized")
+    try:
+        chats_data = []
+        # Fetch active chats using limit=50 to avoid WAHA WEBJS engine timeouts
+        for limit_val in [50, 40, 30]:
+            try:
+                response = requests.get(
+                    f"{WAHA_BASE_URL}/api/{WAHA_SESSION}/chats",
+                    headers=headers,
+                    params={
+                        "limit": limit_val
+                    },
+                    timeout=20
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if isinstance(data, list):
+                        chats_data = data
+                        break
+            except requests.RequestException as req_err:
+                print(
+                    f"WAHA chats fetch attempt with limit={limit_val} failed:",
+                    req_err
+                )
+        if not chats_data:
+            return {
+                "success": True,
+                "contacts": [],
+                "groups": []
+            }
+        groups = []
+        seen_chat_ids = set()
+        for chat in chats_data:
+            chat_id = chat.get("id")
+            if isinstance(chat_id, dict):
+                chat_id = (
+                    chat_id.get("_serialized")
+                    or chat_id.get("user")
+                    or chat_id.get("serialized")
+                )
+            elif not isinstance(chat_id, str):
+                chat_id = str(chat_id) if chat_id else ""
+            if not chat_id or chat_id in seen_chat_ids:
+                continue
+            # Filter ONLY WhatsApp group chats (@g.us)
+            is_group = (
+                chat_id.endswith("@g.us")
+                or chat.get("isGroup") is True
+                or bool(chat.get("groupMetadata"))
             )
-
-        if not chat_id:
-            continue
-
-        chat_name = (
-            chat.get("name")
-            or chat.get("pushname")
-            or chat.get("formattedTitle")
-            or chat.get("displayName")
-            or chat_id
+            if not is_group:
+                continue
+            seen_chat_ids.add(chat_id)
+            group_name = (
+                chat.get("name")
+                or chat.get("subject")
+                or (chat.get("groupMetadata") or {}).get("subject")
+                or chat.get("formattedTitle")
+                or chat_id
+            )
+            groups.append({
+                "recipient_name": group_name,
+                "chat_id": chat_id,
+                "recipient_type": "group"
+            })
+        groups.sort(
+            key=lambda item: item["recipient_name"].lower()
         )
-
-        recipient = {
-            "recipient_name": chat_name,
-            "chat_id": chat_id,
+        return {
+            "success": True,
+            "contacts": [],
+            "groups": groups
         }
-
-        if chat_id.endswith("@g.us"):
-
-            recipient["recipient_type"] = "group"
-
-            groups.append(recipient)
-
-        elif (
-            chat_id.endswith("@c.us")
-            or chat_id.endswith("@lid")
-        ):
-
-            recipient["recipient_type"] = "contact"
-
-            contacts.append(recipient)
-
-    contacts.sort(
-        key=lambda item: item["recipient_name"].lower()
-    )
-
-    groups.sort(
-        key=lambda item: item["recipient_name"].lower()
-    )
-
-    return {
-        "contacts": contacts,
-        "groups": groups,
-    }
+    except requests.RequestException as error:
+        print(
+            "WAHA group API error:",
+            error
+        )
+        return {
+            "success": False,
+            "message": (
+                "Unable to load WhatsApp groups"
+            ),
+            "contacts": [],
+            "groups": []
+        }
+    except Exception as error:
+        print(
+            "WAHA group parsing error:",
+            error
+        )
+        return {
+            "success": False,
+            "message": (
+                "Unable to process WhatsApp groups"
+            ),
+            "contacts": [],
+            "groups": []
+        }

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from service import save_message, process_request , send_message , create_reminder , edit_report, remove_report
+from service import save_message, process_request , send_message , create_reminder , edit_report, remove_report ,fetch_due_reminders
 from llm import understand_message , translate_response
 import base64
 import os
@@ -17,6 +17,8 @@ from scheduler import start_scheduler, stop_scheduler
 from database import mark_past_one_time_reminders_as_missed
 from datetime import date, datetime 
 from reminder_service import get_whatsapp_recipients
+from database import SessionLocal
+from models import Reminder
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -562,3 +564,76 @@ def startup_event():
         "Startup missed reminder count:",
         missed_count
     )
+
+@app.get("/api/reminders/due")
+def get_due_reminders_api():
+
+    try:
+
+        reminders = fetch_due_reminders()
+
+        return {
+            "success": True,
+            "reminders": reminders
+        }
+
+    except Exception as error:
+
+        print(
+            "Get due reminders error:",
+            error
+        )
+
+        return {
+            "success": False,
+            "message":
+                "Unable to load due reminders",
+            "reminders": []
+        }
+
+@app.put("/api/reminders/{reminder_id}/completed")
+def complete_reminder(reminder_id: int):
+
+    db = SessionLocal()
+
+    try:
+        reminder = (
+            db.query(Reminder)
+            .filter(Reminder.id == reminder_id)
+            .first()
+        )
+
+        if not reminder:
+            return {
+                "success": False,
+                "message": "Reminder not found"
+            }
+
+        if reminder.repeat_type == "once":
+
+            reminder.status = "completed"
+            reminder.is_active = False
+
+            db.commit()
+
+        return {
+            "success": True,
+            "message": "Reminder completed"
+        }
+
+    except Exception as error:
+
+        db.rollback()
+
+        print(
+            "Complete reminder error:",
+            error
+        )
+
+        return {
+            "success": False,
+            "message": "Unable to complete reminder"
+        }
+
+    finally:
+        db.close()

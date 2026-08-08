@@ -564,10 +564,9 @@ function renderReports(searchText = "") {
     );
 
     reportManagementCount.textContent =
-        `${filteredReports.length} report${
-            filteredReports.length === 1
-                ? ""
-                : "s"
+        `${filteredReports.length} report${filteredReports.length === 1
+            ? ""
+            : "s"
         }`;
 
     if (filteredReports.length === 0) {
@@ -980,10 +979,9 @@ function renderReminders(searchText = "") {
 
 
     reminderCount.textContent =
-        `${filteredReminders.length} reminder${
-            filteredReminders.length === 1
-                ? ""
-                : "s"
+        `${filteredReminders.length} reminder${filteredReminders.length === 1
+            ? ""
+            : "s"
         }`;
 
 
@@ -1096,7 +1094,7 @@ function renderReminders(searchText = "") {
 
 
         // Enable / Disable only if reminder is not completed
-        
+
         if (
             reminder.status === "active" ||
             reminder.status === "inactive"
@@ -1506,7 +1504,7 @@ async function loadReminders() {
                 scheduleDate: reminder.schedule_date,
                 scheduleTime: reminder.schedule_time,
                 weekDay: reminder.week_day,
-                isActive: reminder.is_active, 
+                isActive: reminder.is_active,
                 completed: reminder.completed || false,
                 status: reminder.status || "active",
             };
@@ -1727,12 +1725,6 @@ if (reminderSearchInput) {
     reminderSearchInput.addEventListener(
         "input",
         function () {
-
-            console.log(
-                "Searching:",
-                reminderSearchInput.value
-            );
-
             renderReminders(
                 reminderSearchInput.value
             );

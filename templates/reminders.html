@@ -4,17 +4,11 @@
 <head>
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>WhatsApp Reminder Manager</title>
 
-    <link
-        rel="stylesheet"
-        href="/static/reminder.css?v=5"
-    >
+    <link rel="stylesheet" href="/static/reminder.css?v=5">
 </head>
 
 <body>
@@ -43,20 +37,12 @@
 
             <div class="header-actions">
 
-                <button
-                    id="openReminderFormButton"
-                    class="primary-button"
-                    type="button"
-                >
+                <button id="openReminderFormButton" class="primary-button" type="button">
                     + Add Reminder
                 </button>
 
 
-                <button
-                    id="openReportsButton"
-                    class="header-secondary-button"
-                    type="button"
-                >
+                <button id="openReportsButton" class="header-secondary-button" type="button">
                     Manage Reports
                 </button>
 
@@ -125,12 +111,8 @@
             </div>
             <div class="search-box">
 
-                <input
-                    id="reminderSearchInput"
-                    type="search"
-                    placeholder="Search reminders by report, recipient or schedule..."
-                    autocomplete="off"
-                >
+                <input id="reminderSearchInput" type="search"
+                    placeholder="Search reminders by report, recipient or schedule..." autocomplete="off">
 
             </div>
             <div class="table-container">
@@ -151,10 +133,7 @@
 
                         <tr id="emptyReminderRow">
 
-                            <td
-                                colspan="5"
-                                class="empty-message"
-                            >
+                            <td colspan="5" class="empty-message">
                                 No reminders created yet.
                             </td>
 
@@ -175,15 +154,9 @@
     <!-- Add Reminder Modal                                -->
     <!-- ================================================= -->
 
-    <div
-        id="reminderModal"
-        class="modal hidden"
-    >
+    <div id="reminderModal" class="modal hidden">
 
-        <div
-            class="modal-overlay"
-            data-close-modal="reminderModal"
-        ></div>
+        <div class="modal-overlay" data-close-modal="reminderModal"></div>
 
         <div class="modal-content modal-large">
 
@@ -204,12 +177,8 @@
                     </p>
                 </div>
 
-                <button
-                    id="closeReminderFormButton"
-                    class="close-button"
-                    type="button"
-                    aria-label="Close reminder form"
-                >
+                <button id="closeReminderFormButton" class="close-button" type="button"
+                    aria-label="Close reminder form">
                     &times;
                 </button>
 
@@ -245,11 +214,7 @@
                             Report
                         </label>
 
-                        <select
-                            id="reportSelect"
-                            name="reportId"
-                            required
-                        >
+                        <select id="reportSelect" name="reportId" required>
                             <option value="">
                                 Select a report
                             </option>
@@ -257,10 +222,7 @@
 
                     </div>
 
-                    <div
-                        id="reportPreview"
-                        class="report-preview"
-                    >
+                    <div id="reportPreview" class="report-preview">
 
                         <div class="report-preview-header">
 
@@ -282,10 +244,7 @@
                             The saved report message will appear here.
                         </p>
 
-                        <div
-                            id="selectedReportDetails"
-                            class="report-details hidden"
-                        ></div>
+                        <div id="selectedReportDetails" class="report-details hidden"></div>
 
                     </div>
 
@@ -329,11 +288,7 @@
                                     </p>
                                 </div>
 
-                                <button
-                                    id="selectAllContactsButton"
-                                    class="text-button"
-                                    type="button"
-                                >
+                                <button id="selectAllContactsButton" class="text-button" type="button">
                                     Select all
                                 </button>
 
@@ -347,11 +302,7 @@
                                         Contact Name
                                     </label>
 
-                                    <input
-                                        id="contactName"
-                                        type="text"
-                                        placeholder="Example: Farm Manager"
-                                    >
+                                    <input id="contactName" type="text" placeholder="Example: Farm Manager">
 
                                 </div>
 
@@ -361,19 +312,12 @@
                                         WhatsApp Number
                                     </label>
 
-                                    <input
-                                        id="contactNumber"
-                                        type="text"
-                                        placeholder="Example: 919876543210"
-                                    >
+                                    <input id="contactNumber" type="text" placeholder="Example: 919876543210">
 
                                 </div>
 
-                                <button
-                                    id="addContactButton"
-                                    class="primary-button inline-contact-button"
-                                    type="button"
-                                >
+                                <button id="addContactButton" class="primary-button inline-contact-button"
+                                    type="button">
                                     + Save Contact
                                 </button>
 
@@ -384,11 +328,8 @@
                             </p>
                             <div class="contact-search-box">
 
-                                <input
-                                    id="contactSearchInput"
-                                    type="text"
-                                    placeholder="Search contacts by name or number"
-                                >
+                                <input id="contactSearchInput" type="text"
+                                    placeholder="Search contacts by name or number">
 
                             </div>
                             <div class="recipient-list-header">
@@ -401,10 +342,7 @@
 
                             </div>
 
-                            <div
-                                id="contactList"
-                                class="recipient-list"
-                            ></div>
+                            <div id="contactList" class="recipient-list"></div>
 
                         </div>
 
@@ -424,11 +362,7 @@
                                     </p>
                                 </div>
 
-                                <button
-                                    id="selectAllGroupsButton"
-                                    class="text-button"
-                                    type="button"
-                                >
+                                <button id="selectAllGroupsButton" class="text-button" type="button">
                                     Select all
                                 </button>
 
@@ -446,19 +380,13 @@
 
                             </div>
 
-                            <div
-                                id="groupList"
-                                class="recipient-list"
-                            ></div>
+                            <div id="groupList" class="recipient-list"></div>
 
                         </div>
 
                     </div>
 
-                    <p
-                        id="recipientError"
-                        class="error-message hidden"
-                    >
+                    <p id="recipientError" class="error-message hidden">
                         Select at least one saved contact or WhatsApp group.
                     </p>
 
@@ -495,11 +423,7 @@
                                 Repeat Type
                             </label>
 
-                            <select
-                                id="repeatType"
-                                name="repeatType"
-                                required
-                            >
+                            <select id="repeatType" name="repeatType" required>
                                 <option value="once">
                                     One time
                                 </option>
@@ -515,21 +439,13 @@
 
                         </div>
 
-                        <div
-                            id="scheduleDateGroup"
-                            class="form-group"
-                        >
+                        <div id="scheduleDateGroup" class="form-group">
 
                             <label for="scheduleDate">
                                 Date
                             </label>
 
-                            <input
-                                id="scheduleDate"
-                                name="scheduleDate"
-                                type="date"
-                                required
-                            >
+                            <input id="scheduleDate" name="scheduleDate" type="date" required>
 
                         </div>
 
@@ -539,28 +455,17 @@
                                 Time
                             </label>
 
-                            <input
-                                id="scheduleTime"
-                                name="scheduleTime"
-                                type="time"
-                                required
-                            >
+                            <input id="scheduleTime" name="scheduleTime" type="time" required>
 
                         </div>
 
-                        <div
-                            id="weekDayGroup"
-                            class="form-group hidden"
-                        >
+                        <div id="weekDayGroup" class="form-group hidden">
 
                             <label for="weekDay">
                                 Day of Week
                             </label>
 
-                            <select
-                                id="weekDay"
-                                name="weekDay"
-                            >
+                            <select id="weekDay" name="weekDay">
                                 <option value="monday">
                                     Monday
                                 </option>
@@ -598,18 +503,11 @@
 
                 <div class="form-actions">
 
-                    <button
-                        id="cancelReminderButton"
-                        class="secondary-button"
-                        type="button"
-                    >
+                    <button id="cancelReminderButton" class="secondary-button" type="button">
                         Cancel
                     </button>
 
-                    <button
-                        class="primary-button"
-                        type="submit"
-                    >
+                    <button class="primary-button" type="submit">
                         Save Reminder
                     </button>
 
@@ -625,15 +523,9 @@
     <!-- Manage Reports Modal                              -->
     <!-- ================================================= -->
 
-    <div
-        id="reportsModal"
-        class="modal hidden"
-    >
+    <div id="reportsModal" class="modal hidden">
 
-        <div
-            class="modal-overlay"
-            data-close-modal="reportsModal"
-        ></div>
+        <div class="modal-overlay" data-close-modal="reportsModal"></div>
 
         <div class="modal-content modal-large">
 
@@ -653,12 +545,7 @@
                     </p>
                 </div>
 
-                <button
-                    id="closeReportsButton"
-                    class="close-button"
-                    type="button"
-                    aria-label="Close reports modal"
-                >
+                <button id="closeReportsButton" class="close-button" type="button" aria-label="Close reports modal">
                     &times;
                 </button>
 
@@ -666,10 +553,7 @@
 
             <form id="reportForm">
 
-                <input
-                    id="editingReportId"
-                    type="hidden"
-                >
+                <input id="editingReportId" type="hidden">
 
                 <section class="form-section compact-section">
 
@@ -681,13 +565,8 @@
                                 Report Name
                             </label>
 
-                            <input
-                                id="reportName"
-                                name="reportName"
-                                type="text"
-                                placeholder="Example: Daily Farm Report"
-                                required
-                            >
+                            <input id="reportName" name="reportName" type="text"
+                                placeholder="Example: Daily Farm Report" required>
 
                         </div>
 
@@ -697,13 +576,8 @@
                                 Task Title
                             </label>
 
-                            <input
-                                id="taskTitle"
-                                name="taskTitle"
-                                type="text"
-                                placeholder="Example: Submit Daily Farm Details"
-                                required
-                            >
+                            <input id="taskTitle" name="taskTitle" type="text"
+                                placeholder="Example: Submit Daily Farm Details" required>
 
                         </div>
 
@@ -713,13 +587,9 @@
                                 Message
                             </label>
 
-                            <textarea
-                                id="reportMessage"
-                                name="reportMessage"
-                                rows="5"
+                            <textarea id="reportMessage" name="reportMessage" rows="5"
                                 placeholder="Example: Please submit today's production, feed, mortality, and sales details."
-                                required
-                            ></textarea>
+                                required></textarea>
 
                         </div>
 
@@ -729,12 +599,8 @@
                                 Additional Details
                             </label>
 
-                            <textarea
-                                id="reportDetails"
-                                name="reportDetails"
-                                rows="3"
-                                placeholder="Optional instructions, deadline, or additional information."
-                            ></textarea>
+                            <textarea id="reportDetails" name="reportDetails" rows="3"
+                                placeholder="Optional instructions, deadline, or additional information."></textarea>
 
                         </div>
 
@@ -742,19 +608,11 @@
 
                     <div class="inline-form-actions">
 
-                        <button
-                            id="cancelReportEditButton"
-                            class="secondary-button hidden"
-                            type="button"
-                        >
+                        <button id="cancelReportEditButton" class="secondary-button hidden" type="button">
                             Cancel Edit
                         </button>
 
-                        <button
-                            id="saveReportButton"
-                            class="primary-button"
-                            type="submit"
-                        >
+                        <button id="saveReportButton" class="primary-button" type="submit">
                             Save Report
                         </button>
 
@@ -789,20 +647,13 @@
 
                 <div class="search-box">
 
-                    <input
-                        id="reportSearchInput"
-                        type="search"
-                        placeholder="Search reports by name, task or message..."
-                        autocomplete="off"
-                    >
+                    <input id="reportSearchInput" type="search" placeholder="Search reports by name, task or message..."
+                        autocomplete="off">
 
                 </div>
 
 
-                <div
-                    id="reportManagementList"
-                    class="report-card-list"
-                >
+                <div id="reportManagementList" class="report-card-list">
 
                     <div class="empty-state">
 
@@ -831,11 +682,7 @@
 
     <!-- Toast Notification -->
 
-    <div
-        id="toastContainer"
-        class="toast-container"
-        aria-live="polite"
-    ></div>
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
 
     <script src="/static/reminder.js?v=6"></script>
@@ -843,4 +690,3 @@
 </body>
 
 </html>
-

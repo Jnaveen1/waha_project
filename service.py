@@ -68,7 +68,8 @@ from database import (
     save_reminder_report,
     get_reminder_reports , 
     update_reminder_report,
-    delete_reminder_report
+    delete_reminder_report, 
+    get_due_reminders
 )
 
 ALLOWED_GROUP_ID = "120363423099150354@g.us"
@@ -2869,7 +2870,7 @@ def create_reminder(request):
 
     reminder = save_reminder(request)
 
-    schedule_reminder(reminder)
+    # schedule_reminder(reminder)
 
     return reminder
 
@@ -2940,5 +2941,7 @@ def remove_report(report_id):
 
     return delete_reminder_report(report_id)
 
+def fetch_due_reminders():
 
+    return get_due_reminders()
 
